@@ -145,7 +145,7 @@ class Clearbit():
         # NOTE: may want to batch this in the future or too many requests will be attempted too quickly.
         for email in recipients_list:
             url = f"https://person.clearbit.com/v2/combined/find?email=:{email}"
-            clearbit_response = get_response(url, username=clearbit_api_key, password=None, api_key=None)
+            clearbit_response = get_response(url, username=username, password=password, api_key=api_key)
             names[email] = get_name(clearbit_response)
         return names
 
@@ -170,24 +170,7 @@ def get_response(url: str, username=None, password=None, api_key=None):
     return api_response
 
 
-def send_mail(sender: str, recipients: list, subject:str, body: str, password: str, attachment_path=None):
-    """
-    Send an email via SMTP.
-
-    Parameters
-    -------
-    sender (str): Sender as a string.
-    recipients ([str]): List of recipients. 
-    subject (str): Email subject line.
-    body (str): Email body as string.
-    password (str): Gmail password as string.
-    attachment_path (str): Optional. Filepath to attachment. 
-    
-    Returns
-    -------
-    None
-    """
-    def add_attachment(email: EmailMessage, filepath: str) -> EmailMessage:
+def add_attachment(email: EmailMessage, filepath: str) -> EmailMessage:
         """
         Given original email message. May or may not include an attachment already.
 
@@ -217,13 +200,33 @@ def send_mail(sender: str, recipients: list, subject:str, body: str, password: s
         return email
 
 
+def send_mail(sender: str, recipients: list, subject:str, body: str, password: str, attachments=None):
+    """
+    Send an email via SMTP.
+
+    Parameters
+    -------
+    sender (str): Sender as a string.
+    recipients ([str]): List of recipients. 
+    subject (str): Email subject line.
+    body (str): Email body as string.
+    password (str): Gmail password as string.
+    attachments ([str]): Optional. List of filepath(s) to attachment(s).
+    
+    Returns
+    -------
+    None
+    """
+
     email = EmailMessage()
     email["Sender"] = sender
     email["Recipients"] = ", ".join(recipients)
     email["Subject"] = subject
     email.set_content(body)
-    if attachment_path != None:
-        email = add_attachment(email, attachment_path)
+
+    if attachments != None:
+        for attachment_path in attachments:
+            email = add_attachment(email, attachment_path)
 
     # Email failsafe.
     confirm_send = input(f"Are you sure you want to send to recipients? (Y/N) \n\n {recipients}\n")
