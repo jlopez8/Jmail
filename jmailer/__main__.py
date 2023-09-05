@@ -233,7 +233,7 @@ def send_mail(sender: str, recipients: list, subject:str, body: str, password: s
         print("Sending email...")
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp_server:
             smtp_server.login(sender, password)
-            # smtp_server.sendmail(sender, recipients, email.as_string())
+            smtp_server.sendmail(sender, recipients, email.as_string())
         print("Message sent!")
     else:
         print("Message NOT sent!")
@@ -265,7 +265,6 @@ def jmailer():
     recipients = get_csv_as_list(recipients_path)
 
     password = credentials["gmail"]["app_password"]
-    print("password:", password)
     email = send_mail(sender, recipients, subject, body, password, attachment_path)
     print("Email send flow complete.")
 
