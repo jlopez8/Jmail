@@ -1,5 +1,6 @@
 # gmailer main.py
 
+import argparse
 import datetime as dt
 
 import yaml
@@ -10,7 +11,55 @@ import ssl
 import mimetypes
 from email.message import EmailMessage
 
+
 import pandas as pd
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        prog="Jmail",
+        description="Super-charged Gmail.",
+        epilog="Thank you for using Jmail.",
+        fromfile_prefix_chars="@",
+    )
+    parser.add_argument(
+        "-cfg", "--config_path", type=str,
+        help="Configuration path."
+    )
+    parser.add_argument(
+        "-s", "--sender", type=str,
+        help="Email sender."
+    )
+    parser.add_argument(
+        "--to", type=str,
+        nargs="+",
+        help="Email recipients."
+    )
+    parser.add_argument(
+        "-sub", "--subject", type=str,
+        help="Email subject."
+    )
+    parser.add_argument(
+        "-b", "--body", type=str,
+        help="Email body."
+    )
+    parser.add_argument(
+        "-bp", "--body_path", type=str,
+        help="Path to prepared email body. Recommend HTML."
+    )
+    parser.add_argument(
+        "-bfg", "--body_cfg_path", type=str,
+        help="Path to config path for email body YAML."
+    )
+    parser.add_argument(
+        "-a", "--attachment_path", type=str,
+        nargs='*',
+        help="Path(s) to 0 or more attachment(s)."
+    )
+
+    args = parser.parse_args()
+        
+    return args
 
 
 def parse_config(config: dict):
@@ -189,8 +238,30 @@ def send_mail(sender: str, recipients: list, subject:str, body: str, password: s
 
 
 def jmailer():
-    print("ran gmailer")
+    """Jmailer method."""
+
+    inputs = parse_args()
+
+    config_path = inputs.config_path
+    sender = inputs.sender
+    recipients = inputs.to
+    subject = inputs.subject
+
+    body = inputs.body
+    body_path = inputs.body_path
+    body_config_path = inputs.body_cfg_path
+
+    attachment_path = inputs.attachment_path
+
+    # write something here about a handling possible 
+    # double-checking of receiving multiple unecessary args.
+    
+
+
+    print("Parsed args.")
 
 
 if __name__ == "__main__":
     jmailer()
+    print("ran gmailer")
+
