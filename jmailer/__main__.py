@@ -36,6 +36,10 @@ def parse_args():
         help="Email recipients."
     )
     parser.add_argument(
+        "-tp", "--to_path", type=str,
+        help="Path to a receipients file (csv)."
+    )
+    parser.add_argument(
         "-sub", "--subject", type=str,
         help="Email subject."
     )
@@ -85,15 +89,14 @@ def get_csv_as_list(filepath: str) -> list:
 
     Parameters
     -------
-    filepath (str): filepath. 
+    filepath (str): Filepath to csv. 
 
     Returns
     -------
     ([str]): List of values.
     
     """
-    import pandas as pd
-    recipients = pd.read_csv(recipients_csv_path, header=None)
+    recipients = pd.read_csv(filepath, header=None)
     return recipients[0].values.tolist()
 
 
@@ -230,7 +233,7 @@ def send_mail(sender: str, recipients: list, subject:str, body: str, password: s
         print("Sending email...")
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp_server:
             smtp_server.login(sender, password)
-            smtp_server.sendmail(sender, recipients, email.as_string())
+            # smtp_server.sendmail(sender, recipients, email.as_string())
         print("Message sent!")
     else:
         print("Message NOT sent!")
@@ -244,7 +247,8 @@ def jmailer():
 
     config_path = inputs.config_path
     sender = inputs.sender
-    recipients = inputs.to
+    # recipients = inputs.to
+    recipients_path = inputs.to_path
     subject = inputs.subject
 
     body = inputs.body
@@ -252,13 +256,22 @@ def jmailer():
     body_config_path = inputs.body_cfg_path
 
     attachment_path = inputs.attachment_path
+    print("Parsed args flow complete.")
+
+    config = yaml.safe_load(open(config_path))
+    credentials = parse_config(config)
+    print("Loaded credentials flow complete..")
+
+    recipients = get_csv_as_list(recipients_path)
+
+    password = credentials["gmail"]["app_password"]
+    print("password:", password)
+    email = send_mail(sender, recipients, subject, body, password, attachment_path)
+    print("Email send flow complete.")
 
     # write something here about a handling possible 
     # double-checking of receiving multiple unecessary args.
-    
 
-
-    print("Parsed args.")
 
 
 if __name__ == "__main__":
