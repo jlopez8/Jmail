@@ -32,12 +32,12 @@ def parse_args():
         help="Email sender."
     )
     parser.add_argument(
-        "--to", type=str,
+        "-to", "--recipients", type=str,
         nargs="+",
         help="Email recipients."
     )
     parser.add_argument(
-        "-tp", "--to_path", type=str,
+        "-rp", "--recipients_path", type=str,
         help="Path to a receipients file (csv)."
     )
     parser.add_argument(
@@ -237,75 +237,83 @@ def build_text(text_path: str, text_vars=None) -> str:
     return text
 
 
-def send_mail(
-        sender: str, recipients: list, subject:str, 
-        password: str,
-        clearbit_user=None,
-        attachments=None,
-        body=None, body_path=None, body_config=None
-    ):
+def build_bodies(names, body_path, body_config):
     """
-    Send an email via SMTP. Recommended body is provided as HTML formatted text. Provide body or body_path and body_config but not both. 
+    Builds email bodies based off full names and corresponding email addresses.
+
+    Parameters
+    -------
+    names (dict[tuple]): Dictionary of tuples corresponding to first and last names for recipient email address.
+    body_path (str): Optional. Email body path to be parsed using the body config. Recommended to use HTML formatting.
+    body_config (str): Optional. Email config for the body including variables that can be quickly parsed and replaced.
+
+    Returns
+    -------
+    bodies (dict): Dictionary recipient email addresses and formatted body text from script.
+    """
+    bodies = {}
+    for recipient, name in names.items():
+        body_config["addressee"] = name[0]
+        bodies[recipient] = build_text(body_path, body_config)
+    return bodies
+
+
+def send_email(sender: str, recipients: list, smpt_connection, subject="", body="", attachments=None):
+    """
+    Send an email via SMTP. Recommended body is provided as HTML formatted text.
 
     Parameters
     -------
     sender (str): Sender as a string.
     recipients ([str]): List of recipients. 
-    subject (str): Email subject line.
-    password (str): Gmail password as string.
-    clearbit_user (str): Optional. Clearbit username. 
+    smpt_connection (smtplib.SMTP_SSL): SMPT SSL connection object.
+    subject (str): Optional. Email subject line.
+    body (str): Optional. Body of message.
     attachments ([str]): Optional. List of filepath(s) to attachment(s).
-    body (str): Optional. Optional. Email body as string.
-    body_path (str): Optional. Email body path to be parsed using the body config. Recommended to use HTML formatting.
-    body_config (str): Optional. Email config for the body including variables that can be quickly parsed and replaced.
+
+    Returns
+    -------
+    email (EmailMessage): Email that was sent.
+    """
+    email = EmailMessage()
+    email["Sender"] = sender
+    email["Recipients"] = " ,".join(recipients)
+    email["Subject"] = subject
+
+    email.set_content(body, subtype="html")
+    if attachments != None:
+        for attachment in attachments:
+            email = add_attachment(email, attachment)
+
+    print("runnign this in test mode")
+    recipients = ["jaime.meriz13@gmail.com", "hexarunner@gmail.com"]
     
+    smpt_connection.sendmail(sender, recipients, email.as_string())
+    print("Message sent!")
+    return email
+
+
+def send_emails(sender: str, recipients: list, smpt_connection, bodies={}, subject=None, attachments=None):
+    """
+    Sends emails with different bodies (can be).
+    
+    Parameters
+    -------
+    sender (str): Sender as a string.
+    recipients ([str]): List of recipients. 
+    smpt_connection (smtplib.SMTP_SSL): SMPT SSL connection object.
+    subject (str): Optional. Email subject line.
+    bodies ({str}): Optional. Dictionary condtaining bodies of separate messages.
+    attachments ([str]): Optional. List of filepath(s) to attachment(s).
+
     Returns
     -------
     None
     """
-
-    email = EmailMessage()
-    email["Sender"] = sender
-    email["Recipients"] = ", ".join(recipients)
-    email["Subject"] = subject
-
-    if attachments != None:
-        for attachment_path in attachments:
-            email = add_attachment(email, attachment_path)
-
-    # Get names using emails with Clearbit.
-    cb = Clearbit()
-    names_from_emails = cb.get_names_from_email_list(recipients, username=clearbit_user)
-
-    # Email failsafe.
-    confirm_send = input(f"Are you sure you want to send to recipients? (Y/N) \n\n {recipients}\n")
-    if confirm_send.lower() == "y":
-
-        context = ssl.create_default_context()
-        print("Sending email...")
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp_server:
-            smtp_server.login(sender, password)
-
-            # dev-NOTE: this is hacky. Definitely clean up the set_content and sendmail method here and 
-            # break it out of this portion into 3 stages: That way you "set/configure an email", "login", 
-            # "apply the body or bodies"
-            
-            if body != None:
-                email.set_content(body)
-                smtp_server.sendmail(sender, recipient, email.as_string())
-            elif body_path != None or body_config != None:
-                for recipient in recipients:
-                    # Value 0 indicates first name, 1 is last name.
-                    body_config["addressee"] = names_from_emails[recipient][0]
-                    body = build_text(body_path, body_config)
-                    print(body)
-                    email.set_content(body, subtype="html")
-                    smtp_server.sendmail(sender, "jaime.meriz13@gmail.com", email.as_string())
-
-        print("Message sent!")
-    else:
-        print("Message NOT sent!")
-    return email
+    for recipient in recipients:
+        body = bodies.get(recipient,("<FIRST>","<LAST>"))
+        send_email(sender, [recipient], smpt_connection, subject=subject, body=body, attachments=attachments)
+    print("Sent some emails!")
 
 
 def jmailer():
@@ -315,15 +323,15 @@ def jmailer():
 
     config_path = inputs.config_path
     sender = inputs.sender
-    # recipients = inputs.to
-    recipients_path = inputs.to_path
+    recipients = inputs.recipients
+    recipients_path = inputs.recipients_path
     subject = inputs.subject
 
     body = inputs.body
     body_path = inputs.body_path
     body_cfg_path = inputs.body_cfg_path
     if body != None and (body_path != None or body_cfg_path != None):
-        print("Provide body or body_path and body_cfg_path but not both.")
+        print("Error: Provide body or body_path and body_cfg_path but not both. Defaulting to body provided.")
         return
     
     attachments = inputs.attachments_path
@@ -333,7 +341,7 @@ def jmailer():
     credentials = parse_config(config)
     print("Loaded credentials flow complete..")
 
-    password = credentials["gmail"]["app_password"]
+    gmail_password = credentials["gmail"]["app_password"]
     print("Get passwords flow complete.")
 
     recipients = get_csv_as_list(recipients_path)
@@ -343,24 +351,27 @@ def jmailer():
         body_config = yaml.safe_load(open(body_cfg_path))
         print("Load body config flow complete.")
 
-    clearbit_user = credentials["clearbit"]["api_key"]
+    clearbit_api_key = credentials["clearbit"]["api_key"]
     print("Clearbit user flow complete.")
 
-    email = send_mail(
-        sender, recipients, subject, password, 
-        attachments=attachments,
-        body_path=body_path, body_config=body_config,
-        clearbit_user=clearbit_user
+    context = ssl.create_default_context()
+    smpt_connection = smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) 
+    smpt_connection.login(sender, gmail_password)
+    print("SMPT connection flow complete.")
+ 
+    names = Clearbit().get_names_from_email_list(recipients, username=clearbit_api_key)
 
-    )    
-    print("Email send flow complete.")
+    ### Start the Meat of the Message.
+    if body != None:
+        bodies = dict(zip(recipients, body))
+    else:
+        bodies = build_bodies(names, body_path, body_config)
 
-    # write something here about a handling possible 
-    # double-checking of receiving multiple unecessary args.
-
+    send_emails(sender, recipients, smpt_connection, bodies, subject=subject, attachments=attachments)
+    return
 
 
 if __name__ == "__main__":
     jmailer()
-    print("ran gmailer")
+    print("Completed running Jmailer.")
 
