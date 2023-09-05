@@ -283,7 +283,7 @@ def send_mail(
 
         context = ssl.create_default_context()
         print("Sending email...")
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp_server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as smtp_server:
             smtp_server.login(sender, password)
 
             # dev-NOTE: this is hacky. Definitely clean up the set_content and sendmail method here and 
@@ -298,6 +298,7 @@ def send_mail(
                     # Value 0 indicates first name, 1 is last name.
                     body_config["addressee"] = names_from_emails[recipient][0]
                     body = build_text(body_path, body_config)
+                    print(body)
                     email.set_content(body, subtype="html")
                     smtp_server.sendmail(sender, "jaime.meriz13@gmail.com", email.as_string())
 
@@ -332,14 +333,23 @@ def jmailer():
     credentials = parse_config(config)
     print("Loaded credentials flow complete..")
 
-    recipients = get_csv_as_list(recipients_path)
-
     password = credentials["gmail"]["app_password"]
+    print("Get passwords flow complete.")
+
+    recipients = get_csv_as_list(recipients_path)
+    print("Get recipients flow complete.")
+
+    if body_cfg_path != None:
+        body_config = yaml.safe_load(open(body_cfg_path))
+        print("Load body config flow complete.")
+
     clearbit_user = credentials["clearbit"]["api_key"]
+    print("Clearbit user flow complete.")
+
     email = send_mail(
         sender, recipients, subject, password, 
         attachments=attachments,
-        body_path=body_path, body_config=body_cfg_path,
+        body_path=body_path, body_config=body_config,
         clearbit_user=clearbit_user
 
     )    
