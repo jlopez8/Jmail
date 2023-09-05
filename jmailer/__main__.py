@@ -103,7 +103,7 @@ def get_csv_as_list(filepath: str) -> list:
 
 class Clearbit():
     """A class for working with Clearbit API."""
-    def get_name(response: requests.models.Response) -> (str, str):
+    def get_name(self, response: requests.models.Response) -> (str, str):
         """
         Parse response for HTTP request.
 
@@ -115,7 +115,7 @@ class Clearbit():
         -------
         name (str, str): Tuple of first and last name. 
         """
-        if not isinstance(y, requests.models.Response):
+        if not isinstance(response, requests.models.Response):
             print("Not a request.")
             return 
         name = (None, None)
@@ -127,7 +127,7 @@ class Clearbit():
         return name
 
 
-    def get_names_from_email_list(recipients_list:[str], username=None, password=None, api_key=None):
+    def get_names_from_email_list(self, recipients_list:[str], username=None, password=None, api_key=None):
         """
         Given a list of recipients, use Clearbit to retreive their names. Other data may be retreieved but at a later stage. 
         The username is the api_key from Clearbit. Read their docs for more info.
@@ -147,7 +147,7 @@ class Clearbit():
         for email in recipients_list:
             url = f"https://person.clearbit.com/v2/combined/find?email=:{email}"
             clearbit_response = get_response(url, username=username, password=password, api_key=api_key)
-            names[email] = get_name(clearbit_response)
+            names[email] = self.get_name(clearbit_response)
         return names
 
 
@@ -240,6 +240,7 @@ def build_text(text_path: str, text_vars=None) -> str:
 def send_mail(
         sender: str, recipients: list, subject:str, 
         password: str,
+        clearbit_user=None,
         attachments=None,
         body=None, body_path=None, body_config=None
     ):
@@ -252,6 +253,7 @@ def send_mail(
     recipients ([str]): List of recipients. 
     subject (str): Email subject line.
     password (str): Gmail password as string.
+    clearbit_user (str): Optional. Clearbit username. 
     attachments ([str]): Optional. List of filepath(s) to attachment(s).
     body (str): Optional. Optional. Email body as string.
     body_path (str): Optional. Email body path to be parsed using the body config. Recommended to use HTML formatting.
@@ -266,15 +268,17 @@ def send_mail(
     email["Sender"] = sender
     email["Recipients"] = ", ".join(recipients)
     email["Subject"] = subject
-    email.set_content(body)
 
     if attachments != None:
         for attachment_path in attachments:
             email = add_attachment(email, attachment_path)
 
+    # Get names using emails with Clearbit.
+    cb = Clearbit()
+    names_from_emails = cb.get_names_from_email_list(recipients, username=clearbit_user)
+
     # Email failsafe.
     confirm_send = input(f"Are you sure you want to send to recipients? (Y/N) \n\n {recipients}\n")
-
     if confirm_send.lower() == "y":
 
         context = ssl.create_default_context()
@@ -292,10 +296,10 @@ def send_mail(
             elif body_path != None or body_config != None:
                 for recipient in recipients:
                     # Value 0 indicates first name, 1 is last name.
-                    body_config["addressee"] = names_from_emails[to][0]
+                    body_config["addressee"] = names_from_emails[recipient][0]
                     body = build_text(body_path, body_config)
                     email.set_content(body, subtype="html")
-                    smtp_server.sendmail(sender, recipient, email.as_string())
+                    smtp_server.sendmail(sender, "jaime.meriz13@gmail.com", email.as_string())
 
         print("Message sent!")
     else:
@@ -331,10 +335,12 @@ def jmailer():
     recipients = get_csv_as_list(recipients_path)
 
     password = credentials["gmail"]["app_password"]
+    clearbit_user = credentials["clearbit"]["api_key"]
     email = send_mail(
         sender, recipients, subject, password, 
         attachments=attachments,
-        body_path=body_path, body_config=body_cfg_path
+        body_path=body_path, body_config=body_cfg_path,
+        clearbit_user=clearbit_user
 
     )    
     print("Email send flow complete.")
