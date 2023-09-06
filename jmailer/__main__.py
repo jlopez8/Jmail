@@ -63,9 +63,7 @@ def parse_args():
         nargs='*',
         help="Path(s) to 0 or more attachment(s)."
     )
-
-    args = parser.parse_args()
-        
+    args = parser.parse_args()   
     return args
 
 
