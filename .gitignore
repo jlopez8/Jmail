@@ -135,3 +135,4 @@ app_keys.py
 # secrets
 *secrets*
 *jmailer_secrets.json*
+*token.pickle*
