@@ -1,5 +1,7 @@
 # gmailer main.py
 
+import os
+
 import argparse
 import datetime as dt
 import regex as re
@@ -196,7 +198,7 @@ def add_attachment(email: EmailMessage, filepath: str) -> EmailMessage:
             ctype = "application/octet-stream"
         maintype, subtype = ctype.split("/", 1)
 
-        email.add_attachment(data, maintype=maintype, subtype=subtype)
+        email.add_attachment(data, maintype=maintype, subtype=subtype, filename=os.path.basename(filepath))
         print(f"Successfully attached: {filepath}")
         return email
 
