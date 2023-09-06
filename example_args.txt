@@ -1,0 +1,15 @@
+--config_path
+/config.yaml
+--sender
+email@gmail.com
+--recipients_path
+/email_recipients.csv
+--subject
+"[DEV] Test email"
+--body_path
+/body.txt
+--body_cfg_path
+/body.yaml
+--attachments_path
+/SF_Ryu.png
+/resume.pdf
