@@ -131,3 +131,8 @@ dmypy.json
 # configs
 app_keys.py
 *config.yaml*
+
+# secrets
+*secrets*
+*jmailer_secrets.json*
+*token.pickle*
