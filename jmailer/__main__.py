@@ -16,6 +16,8 @@ from email.message import EmailMessage
 
 import pandas as pd
 
+import db_handler
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -318,6 +320,8 @@ def send_emails(sender: str, recipients: list, smpt_connection, bodies={}, subje
 def jmailer():
     """Jmailer method."""
 
+    DB_IDENTIFIER = "1t1wGAQvZuwEWOOgcgtBaqbZoafG_ZCfTV5QGyMfYHTg"
+
     inputs = parse_args()
 
     config_path = inputs.config_path
@@ -325,6 +329,7 @@ def jmailer():
     recipients = inputs.recipients
     recipients_path = inputs.recipients_path
     subject = inputs.subject
+    credentials_path = inputs.credentials_path
 
     body = inputs.body
     body_path = inputs.body_path
@@ -367,6 +372,20 @@ def jmailer():
         bodies = build_bodies(names, body_path, body_config)
 
     send_emails(sender, recipients, smpt_connection, bodies, subject=subject, attachments=attachments)
+
+    ### Update Contacts db.
+    try:
+        db_identifier = DB_IDENTIFIER
+        db_handler.DB_handler().db_contacts_updater(
+            credentials_path,
+            clearbit_api_key,
+            DB_IDENTIFIER,
+            "contacts",
+            recipients
+        )
+    except Exception as e:
+        db_handler.DB_handler().Timers().exec_time(e)
+        print(e)
     return
 
 
