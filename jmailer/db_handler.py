@@ -21,7 +21,7 @@ import pygsheets
 
 DB_CONFIG_PATH = "../db_config.yaml"
 
-def parse_args():
+def parse_argfs():
     parser = argparse.ArgumentParser(
         prog="Insurance Providers Report.",
         description="Post to insurance provider report.",
@@ -382,18 +382,7 @@ def main():
     table_identifier = input.table_identifier
     recipients = input.recipients
 
-    # credentials_path = r"/Users/jaimemerizalde/Desktop/JOBS 2023/software/jmailer/secrets/db_secret.json"
-    # db_identifier = "1t1wGAQvZuwEWOOgcgtBaqbZoafG_ZCfTV5QGyMfYHTg"
-    # table_identifier = "contacts"
-    # recipients = [
-    #     "marco.starger@getgarner.com", 
-    #     "austin.lovell@getgarner.com", 
-    #     "evelyn.siu@getgarner.com",
-    # ]
 
+if __name__ == "__main__":
+    Timers.exec_time(f"")
 
-
-
-
-# if __name__ == "__main__":
-#     Timers.exec_time(f"")
