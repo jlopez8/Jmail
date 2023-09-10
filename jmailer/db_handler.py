@@ -382,7 +382,6 @@ def main():
     table_identifier = input.table_identifier
     recipients = input.recipients
 
-
+    
 if __name__ == "__main__":
     Timers.exec_time(f"")
-
