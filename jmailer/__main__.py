@@ -14,8 +14,9 @@ import ssl
 import mimetypes
 from email.message import EmailMessage
 
-
 import pandas as pd
+
+import db_handler
 
 
 def parse_args():
@@ -28,6 +29,10 @@ def parse_args():
     parser.add_argument(
         "-cfg", "--config_path", type=str,
         help="Configuration path."
+    )
+    parser.add_argument(
+        "-db", "--db_identifier", type=str,
+        help="Database key identifier. Possibly a name."
     )
     parser.add_argument(
         "-s", "--sender", type=str,
@@ -62,6 +67,14 @@ def parse_args():
         "-a", "--attachments_path", type=str,
         nargs='*',
         help="Path(s) to 0 or more attachment(s)."
+    )
+    parser.add_argument(
+        "-cp", "--credentials_path", type=str,
+        help="Path to a receipients file (csv)."
+    )
+    parser.add_argument(
+        "-t", "--test_mode", type=str,
+        help="If \"Y\" then emails sent to sender only."
     )
     args = parser.parse_args()   
     return args
@@ -258,7 +271,7 @@ def build_bodies(names, body_path, body_config):
     return bodies
 
 
-def send_email(sender: str, recipients: list, smpt_connection, subject="", body="", attachments=None):
+def send_email(sender: str, recipients: list, smpt_connection, subject="", body="", attachments=None, test_mode=True):
     """
     Send an email via SMTP. Recommended body is provided as HTML formatted text.
 
@@ -285,15 +298,16 @@ def send_email(sender: str, recipients: list, smpt_connection, subject="", body=
         for attachment in attachments:
             email = add_attachment(email, attachment)
 
-    print("runnign this in test mode")
-    recipients = ["jaime.meriz13@gmail.com", "hexarunner@gmail.com"]
+    if test_mode:
+        print("Sending email in test mode.")
+        recipients = [sender]
     
     smpt_connection.sendmail(sender, recipients, email.as_string())
     print("Message sent!")
     return email
 
 
-def send_emails(sender: str, recipients: list, smpt_connection, bodies={}, subject=None, attachments=None):
+def send_emails(sender: str, recipients: list, smpt_connection, bodies={}, subject=None, attachments=None, test_mode=True):
     """
     Sends emails with different bodies (can be).
     
@@ -305,6 +319,7 @@ def send_emails(sender: str, recipients: list, smpt_connection, bodies={}, subje
     subject (str): Optional. Email subject line.
     bodies ({str}): Optional. Dictionary condtaining bodies of separate messages.
     attachments ([str]): Optional. List of filepath(s) to attachment(s).
+    test_mode (bool): Sends to sender-inbox only if true.
 
     Returns
     -------
@@ -312,7 +327,7 @@ def send_emails(sender: str, recipients: list, smpt_connection, bodies={}, subje
     """
     for recipient in recipients:
         body = bodies.get(recipient,("<FIRST>","<LAST>"))
-        send_email(sender, [recipient], smpt_connection, subject=subject, body=body, attachments=attachments)
+        send_email(sender, [recipient], smpt_connection, subject=subject, body=body, attachments=attachments, test_mode=test_mode)
     print("Sent some emails!")
 
 
@@ -326,6 +341,13 @@ def jmailer():
     recipients = inputs.recipients
     recipients_path = inputs.recipients_path
     subject = inputs.subject
+    credentials_path = inputs.credentials_path
+    db_identifier = inputs.db_identifier
+    test_mode = inputs.test_mode
+
+    if test_mode == "Y":
+        print(f"Running in test mode. Emails will be sent to {sender}")
+        test_mode = True
 
     body = inputs.body
     body_path = inputs.body_path
@@ -339,7 +361,7 @@ def jmailer():
 
     config = yaml.safe_load(open(config_path))
     credentials = parse_config(config)
-    print("Loaded credentials flow complete..")
+    print("Loaded credentials flow complete.")
 
     gmail_password = credentials["gmail"]["app_password"]
     print("Get passwords flow complete.")
@@ -351,6 +373,7 @@ def jmailer():
         body_config = yaml.safe_load(open(body_cfg_path))
         print("Load body config flow complete.")
 
+    # Cross-check that you have sent to these people already.
     clearbit_api_key = credentials["clearbit"]["api_key"]
     print("Clearbit user flow complete.")
 
@@ -367,11 +390,35 @@ def jmailer():
     else:
         bodies = build_bodies(names, body_path, body_config)
 
-    send_emails(sender, recipients, smpt_connection, bodies, subject=subject, attachments=attachments)
+    confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
+
+    if confirm_send=="y":
+        send_emails(sender, recipients, smpt_connection, bodies, subject=subject, attachments=attachments, test_mode=test_mode)
+    else:
+        msg = "Messages not sent!"
+        db_handler.Timers().exec_time(msg)
+
+    ## Update Contacts db.
+    if confirm_send=="y":
+        try:
+            msg = "Updating database."
+            db_handler.Timers().exec_time(msg)
+            db_handler.DB_handler().db_contacts_updater(
+                credentials_path,
+                clearbit_api_key,
+                db_identifier,
+                "contacts",
+                recipients
+            )
+        except Exception as e:
+            msg = "Something went wrong with writing to the db. " + str(e)
+            db_handler.Timers().exec_time(msg)
+    else:
+        msg = "Database not updated."
+        db_handler.Timers().exec_time(msg)
     return
 
 
 if __name__ == "__main__":
     jmailer()
     print("Completed running Jmailer.")
-
