@@ -19,7 +19,7 @@ from google.auth.transport.requests import Request
 import pygsheets
 
 
-DB_CONFIG_PATH = "../db_config.yaml"
+DB_CONFIG_PATH = "/Users/jaimemerizalde/Desktop/JOBS 2023/software/jmailer/db_config.yaml"
 
 def parse_argfs():
     parser = argparse.ArgumentParser(
@@ -52,7 +52,7 @@ class Timers():
     """A class for  Timing-stamping cell calls."""
     import datetime as dt
 
-    def exec_time(msg="Completed task"):
+    def exec_time(self, msg="Completed task"):
         """
         Runtime message tracking cell progress. Prints an message and a timestamp.
         
@@ -163,7 +163,7 @@ class Google():
         if wks.rows < len(df0):
             msg = "Warning: Data rows exceeds worksheet rows available. Expanding worksheet."
             # logger.warning(msg)
-            Timers.exec_time(msg)
+            Timers().exec_time(msg)
 
             wks.resize(rows=len(df0))
 
@@ -171,7 +171,7 @@ class Google():
 
         log_msg = f"Pushed data to gsheet with key:{gsheetkey}"
         # logger.info(log_msg)
-        Timers.exec_time(log_msg)
+        Timers().exec_time(log_msg)
 
 
 class DB_handler():
@@ -180,7 +180,7 @@ class DB_handler():
     """
 
     def __init__(self):
-        self.DB_CONFIG_PATH = "../db_config.yaml"
+        self.dB_config_path = DB_CONFIG_PATH
 
 
     def _load_config(
@@ -198,7 +198,7 @@ class DB_handler():
         -------
         ((list)): Tuple of columns.
         """
-        db_configs = yaml.safe_load(open(self.DB_CONFIG_PATH))
+        db_configs = yaml.safe_load(open(self.dB_config_path))
         merge_columns = db_configs["column_configs"]["merge_columns"]
         fixed_columns = db_configs["column_configs"]["fixed_columns"]
         update_columns = db_configs["column_configs"]["update_columns"]
@@ -219,20 +219,27 @@ class DB_handler():
         -------
         response_df (dict): Dataframe of colleciont of respones.
         """
+        response_df = None
         json_data = {}
         for key, response in data.items():
             response_json = response.json()
-            json_data[key] = {
-                "CREATEDATETIME":  dt.datetime.today().strftime('%Y-%m-%d'), # IF DOES NOT EXIST: dt.datetime.today().strftime('%Y-%m-%d')
-                "FIRST_NAME": response_json["person"]["name"]["givenName"],
-                "LAST_NAME": response_json["person"]["name"]["familyName"],
-                "EMAIL": key,
-                "COMPANY": response_json["company"]["name"],
-                "LAST_OUTREACH":  dt.datetime.today().strftime('%Y-%m-%d'),
-                "FIRST_OUTREACH": dt.datetime.today().strftime('%Y-%m-%d'), # IF DOES NOT EXIST: dt.datetime.today().strftime('%Y-%m-%d')
-            }
-        response_df = pd.DataFrame.from_dict(json_data, orient="index")
-        response_df.reset_index(drop=True, inplace=True)
+            try: 
+                json_data[key] = {
+                    "CREATEDATETIME":  dt.datetime.today().strftime('%Y-%m-%d'), # IF DOES NOT EXIST: dt.datetime.today().strftime('%Y-%m-%d')
+                    "FIRST_NAME": response_json["person"].get("name", "").get("givenName", ""),
+                    "LAST_NAME": response_json["person"].get("name", "").get("familyName", ""),
+                    "EMAIL": key,
+                    "COMPANY": response_json.get("company","").get("name", ""),
+                    "LAST_OUTREACH":  dt.datetime.today().strftime('%Y-%m-%d'),
+                    "FIRST_OUTREACH": dt.datetime.today().strftime('%Y-%m-%d'), # IF DOES NOT EXIST: dt.datetime.today().strftime('%Y-%m-%d')
+                }
+            except Exception as e:
+                msg = f"No response recorded for {key}. " + str(e)
+                Timers().exec_time(msg)
+
+        if len(json_data) > 0:
+            response_df = pd.DataFrame.from_dict(json_data, orient="index")
+            response_df.reset_index(drop=True, inplace=True)
         return response_df
 
 
@@ -358,7 +365,6 @@ class DB_handler():
         sh = gsheets.open_by_key(db_identifier)
         worksheets = sh.worksheets()
         wks = sh.worksheet("title", table)
-
         original_df = wks.get_as_df()
 
         recipient_data = {}
@@ -369,9 +375,12 @@ class DB_handler():
 
         new_data = self.responses_to_df(recipient_data)
 
-        updated_data = self.update_dataframe_conditionally(new_data, original_df, merge_columns, fixed_columns, update_columns, sort_by=sort_by, ascending=False,)
-
-        google.write_to_googlesheets(updated_data, db_identifier, gsheets, table, row_start="A1")
+        if not new_data is None:
+            updated_data = self.update_dataframe_conditionally(new_data, original_df, merge_columns, fixed_columns, update_columns, sort_by=sort_by, ascending=False,)
+            google.write_to_googlesheets(updated_data, db_identifier, gsheets, table, row_start="A1")
+        else:
+            msg = "No new data to update!"
+            Timers().exec_time(msg)
         return 
 
 
@@ -384,4 +393,4 @@ def main():
 
     
 if __name__ == "__main__":
-    Timers.exec_time(f"")
+    Timers().exec_time(f"")
