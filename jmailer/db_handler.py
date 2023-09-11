@@ -144,7 +144,7 @@ class Google():
         -------
         data (pd.DataFrame): Dataframe with data to push.
         gsheetkey (str): Key to google sheet.
-        gsheets (pygsheets client object): Google sheets connection object.
+        gsheets (pygsheets.client.Client): Google sheets connection object.
         data (pd.DataFrame): Dataframe with data to push.
         wks_title (str): Worksheet title.
         row_start (str): Set where the dataframe starting cell will write. Use A1 formatting.
@@ -204,8 +204,40 @@ class DB_handler():
         update_columns = db_configs["column_configs"]["update_columns"]
         sort_by = db_configs["column_configs"].get("sort_by", None)
         return merge_columns, fixed_columns, update_columns, sort_by
+    
 
+    def cross_check_emails(self, recipients: list, gsheets: pygsheets.client.Client, db_identifier: str, db_table: str) -> (list, list):
+        """
+        Takes a list of emails and returns those that do not already exist in the (gsheet) database.
+        
+        Parameters
+        -------
+        recipients ([str]): List of emails to be cross-checked.
+        gsheets (pygsheets.client.Client): pygsheets client object to manipulate gsheets.
+        db_identifier (str): Key identifying location of database. 
+        db_table (str): Table identifier.
 
+        Returns
+        -------
+        reduced_recipients ([str]): Reduced list of emails.
+        repeated_recipients ([str]): List of recipients that have already been recorded.
+        """
+        reduced_recipients = []
+        repeated_recipients = []
+
+        # Get the table data.
+        sh = gsheets.open_by_key(db_identifier)
+        worksheets = sh.worksheets()
+        wks = sh.worksheet("title", db_table)
+        original_df = wks.get_as_df()
+
+        # Cross-check.
+        existing_emails = original_df["EMAIL"].to_list()
+        reduced_recipients = [col for col in recipients if not col in existing_emails]
+        repeated_recipients = [col for col in recipients if col in existing_emails]
+        return reduced_recipients, repeated_recipients
+
+    
     def responses_to_df(self, data: dict) -> dict: 
         """
         Given a dictionary of requests.models.Response -s, 
@@ -360,8 +392,11 @@ class DB_handler():
 
         merge_columns, fixed_columns, update_columns, sort_by = self._load_config(credentials_path)
 
+        # Open a connection to Google.
         google = Google()
         _, gsheets = google.google_connect(credentials_path=credentials_path)
+
+        # Get the original data.
         sh = gsheets.open_by_key(db_identifier)
         worksheets = sh.worksheets()
         wks = sh.worksheet("title", table)

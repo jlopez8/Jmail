@@ -35,6 +35,10 @@ def parse_args():
         help="Database key identifier. Possibly a name."
     )
     parser.add_argument(
+        "-dt", "--db_table", type=str,
+        help="Database table identifier."
+    )
+    parser.add_argument(
         "-s", "--sender", type=str,
         help="Email sender."
     )
@@ -337,17 +341,20 @@ def jmailer():
     inputs = parse_args()
 
     config_path = inputs.config_path
+    db_identifier = inputs.db_identifier
+    db_table = inputs.db_table
     sender = inputs.sender
     recipients = inputs.recipients
     recipients_path = inputs.recipients_path
     subject = inputs.subject
     credentials_path = inputs.credentials_path
-    db_identifier = inputs.db_identifier
     test_mode = inputs.test_mode
 
     if test_mode == "Y":
         print(f"Running in test mode. Emails will be sent to {sender}")
         test_mode = True
+    else:
+        test_mode = False
 
     body = inputs.body
     body_path = inputs.body_path
@@ -373,7 +380,6 @@ def jmailer():
         body_config = yaml.safe_load(open(body_cfg_path))
         print("Load body config flow complete.")
 
-    # Cross-check that you have sent to these people already.
     clearbit_api_key = credentials["clearbit"]["api_key"]
     print("Clearbit user flow complete.")
 
@@ -390,8 +396,23 @@ def jmailer():
     else:
         bodies = build_bodies(names, body_path, body_config)
 
-    confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
+    # Warn about emails you've already sent.
+    google = db_handler.Google()
+    _, gsheets = google.google_connect(credentials_path=credentials_path)
+    reduced_recipients, repeated_recipients = db_handler.DB_handler().cross_check_emails(recipients, gsheets, db_identifier, db_table)
 
+    if len(repeated_recipients) != 0: 
+        msg = f"Found {str(len(repeated_recipients))} emails already in the database."
+        msg += f"\nThey are\n{repeated_recipients}"
+        db_handler.Timers().exec_time(msg)
+        confirm_exclusions = input(f"\nDo you want to exclude these recipients? y - to exclude from send?")
+        if confirm_exclusions == "y":
+            recipients = reduced_recipients
+
+    print("Message preview: \n")
+    print(bodies[list(bodies.keys())[0]])
+
+    confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
     if confirm_send=="y":
         send_emails(sender, recipients, smpt_connection, bodies, subject=subject, attachments=attachments, test_mode=test_mode)
     else:
@@ -407,7 +428,7 @@ def jmailer():
                 credentials_path,
                 clearbit_api_key,
                 db_identifier,
-                "contacts",
+                db_table,
                 recipients
             )
         except Exception as e:
