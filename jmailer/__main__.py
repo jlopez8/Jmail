@@ -350,19 +350,18 @@ def jmailer():
     subject = inputs.subject
     credentials_path = inputs.credentials_path
     test_mode = inputs.test_mode
+    body = inputs.body
+    body_path = inputs.body_path
 
+    if body != None and (body_path != None or email_config_path != None):
+        print("Error: Provide body or body_path and email_config_path but not both. Defaulting to body provided.")
+        return
+    
     if test_mode == "Y":
         print(f"Running in test mode. Emails will be sent to {sender}")
         test_mode = True
     else:
         test_mode = False
-
-    body = inputs.body
-    body_path = inputs.body_path
-    email_config_path = inputs.email_config_path
-    if body != None and (body_path != None or email_config_path != None):
-        print("Error: Provide body or body_path and email_config_path but not both. Defaulting to body provided.")
-        return
     
     attachments = inputs.attachments_path
     print("Parsed args flow complete.")
@@ -389,6 +388,7 @@ def jmailer():
     smpt_connection.login(sender, gmail_password)
     print("SMPT connection flow complete.")
  
+    # THIS RIGHT NOW IS A PROBLEM. I can't rely on Clearbit to get the names so I have to get a workaround...
     names = Clearbit().get_names_from_email_list(recipients, username=clearbit_api_key)
 
     ### Start the Meat of the Message.
