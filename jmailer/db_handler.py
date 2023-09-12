@@ -21,7 +21,7 @@ import pygsheets
 
 DB_CONFIG_PATH = "/Users/jaimemerizalde/Desktop/JOBS 2023/software/jmailer/db_config.yaml"
 
-def parse_argfs():
+def parse_args():
     parser = argparse.ArgumentParser(
         prog="Insurance Providers Report.",
         description="Post to insurance provider report.",
