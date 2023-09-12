@@ -57,15 +57,15 @@ def parse_args():
     )
     parser.add_argument(
         "-b", "--body", type=str,
-        help="Email body."
+        help="Email body as string."
     )
     parser.add_argument(
         "-bp", "--body_path", type=str,
         help="Path to prepared email body. Recommend HTML."
     )
     parser.add_argument(
-        "-bfg", "--body_cfg_path", type=str,
-        help="Path to config path for email body YAML."
+        "-ecp", "--email_config_path", type=str,
+        help="Path to config path for email config YAML."
     )
     parser.add_argument(
         "-a", "--attachments_path", type=str,
@@ -346,6 +346,7 @@ def jmailer():
     sender = inputs.sender
     recipients = inputs.recipients
     recipients_path = inputs.recipients_path
+    email_config_path = inputs.email_config_path
     subject = inputs.subject
     credentials_path = inputs.credentials_path
     test_mode = inputs.test_mode
@@ -358,9 +359,9 @@ def jmailer():
 
     body = inputs.body
     body_path = inputs.body_path
-    body_cfg_path = inputs.body_cfg_path
-    if body != None and (body_path != None or body_cfg_path != None):
-        print("Error: Provide body or body_path and body_cfg_path but not both. Defaulting to body provided.")
+    email_config_path = inputs.email_config_path
+    if body != None and (body_path != None or email_config_path != None):
+        print("Error: Provide body or body_path and email_config_path but not both. Defaulting to body provided.")
         return
     
     attachments = inputs.attachments_path
@@ -376,9 +377,9 @@ def jmailer():
     recipients = get_csv_as_list(recipients_path)
     print("Get recipients flow complete.")
 
-    if body_cfg_path != None:
-        body_config = yaml.safe_load(open(body_cfg_path))
-        print("Load body config flow complete.")
+    if email_config_path != None:
+        email_config = yaml.safe_load(open(email_config_path))
+        print("Load email config flow complete.")
 
     clearbit_api_key = credentials["clearbit"]["api_key"]
     print("Clearbit user flow complete.")
@@ -391,10 +392,13 @@ def jmailer():
     names = Clearbit().get_names_from_email_list(recipients, username=clearbit_api_key)
 
     ### Start the Meat of the Message.
+    if subject is None:
+        subject = email_config["subject"]
+
     if body != None:
         bodies = dict(zip(recipients, body))
     else:
-        bodies = build_bodies(names, body_path, body_config)
+        bodies = build_bodies(names, body_path, email_config)
 
     # Warn about emails you've already sent.
     google = db_handler.Google()
@@ -420,7 +424,7 @@ def jmailer():
         db_handler.Timers().exec_time(msg)
 
     ## Update Contacts db.
-    if confirm_send=="y":
+    if confirm_send=="y" and not test_mode:
         try:
             msg = "Updating database."
             db_handler.Timers().exec_time(msg)
