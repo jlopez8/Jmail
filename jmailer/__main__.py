@@ -57,15 +57,15 @@ def parse_args():
     )
     parser.add_argument(
         "-b", "--body", type=str,
-        help="Email body."
+        help="Email body as string."
     )
     parser.add_argument(
         "-bp", "--body_path", type=str,
         help="Path to prepared email body. Recommend HTML."
     )
     parser.add_argument(
-        "-bfg", "--body_cfg_path", type=str,
-        help="Path to config path for email body YAML."
+        "-ecp", "--email_config_path", type=str,
+        help="Path to config path for email config YAML."
     )
     parser.add_argument(
         "-a", "--attachments_path", type=str,
@@ -167,6 +167,88 @@ class Clearbit():
             names[email] = self.get_name(clearbit_response)
         return names
 
+
+class PeopleDataLabs():
+    """A class for working with People Data Labs API."""
+    
+    def get_name(self, response: requests.models.Response) -> (str, str):
+        """
+        Parse response for HTTP request.
+
+        Parameters
+        -------
+        response (requests.models.Response): Http response with person data.
+
+        Returns
+        -------
+        name (str, str): Tuple of first and last name. 
+        """
+        if not isinstance(response, requests.models.Response):
+            print("Not a request.")
+            return 
+        name = (None, None)
+        response_json = response.json()
+        data = response_json["data"]
+        # data = response_json.get("data", {"first_name": "<FIRST_NAME>", "last_name": "<LAST_NAME>"})
+        first_name = self.format_name(data["first_name"])
+        last_name = self.format_name(data["last_name"])
+        name = (first_name, last_name)
+        return name
+    
+
+    def format_name(self, name: str):
+        """
+        Takes a name with potential special characters and extra spaces to return a properly-formatted name. 
+        Capitalizes first letters of place-value locations.
+
+        Parameters
+        -------
+        name (str): Name with potential special characters or spaces. 
+
+        Returns
+        -------
+        f_name (str): Formatted name.
+        """
+        remove_spaces = re.sub("\s+|\s+$", "", name)
+
+        # Split by special Characters.
+        pattern = "(^|[^a-zA-Z0-9])([a-zA-Z0-9])"
+        f_name = re.sub(pattern, lambda x: x.group(1) + x.group(2).upper(),remove_spaces)
+        return f_name
+    
+
+    def get_names_from_email_list(self, recipients_list:[str], username=None, password=None, api_key=None):
+        """
+        Given a list of recipients, use People Data Labs to retreive their names. 
+        Other data may be retreieved but at a later stage. 
+        The username is the api_key from People Data Labs. Read their docs for more info.
+
+        Parameters
+        -------
+        username (str): Username.
+        password (str): Password.
+        api_key (str): API key.
+
+        Returns
+        -------
+        names {}: Dict of emails to names.
+        """
+        names = {}
+        # NOTE: may want to batch this in the future or too many requests will be attempted too quickly.
+        url = f"https://api.peopledatalabs.com/v5/person/enrich"
+        for email in recipients_list:
+            params = {
+                "api_key": api_key,
+                "email": email
+            }
+            response = requests.get(url, params=params)
+            try:
+                names[email] = self.get_name(response)
+            except Exception as e:
+                msg = str(e) + f"\nName fetching failed for: {email}. Skipping this name."
+                db_handler.Timers().exec_time(msg)
+        return names
+    
 
 def get_response(url: str, username=None, password=None, api_key=None):
     """
@@ -330,7 +412,7 @@ def send_emails(sender: str, recipients: list, smpt_connection, bodies={}, subje
     None
     """
     for recipient in recipients:
-        body = bodies.get(recipient,("<FIRST>","<LAST>"))
+        body = bodies.get(recipient, "")
         send_email(sender, [recipient], smpt_connection, subject=subject, body=body, attachments=attachments, test_mode=test_mode)
     print("Sent some emails!")
 
@@ -346,24 +428,24 @@ def jmailer():
     sender = inputs.sender
     recipients = inputs.recipients
     recipients_path = inputs.recipients_path
+    email_config_path = inputs.email_config_path
     subject = inputs.subject
     credentials_path = inputs.credentials_path
     test_mode = inputs.test_mode
+    body = inputs.body
+    body_path = inputs.body_path
+    attachments_path = inputs.attachments_path
 
+    if body != None and (body_path != None or email_config_path != None):
+        print("Error: Provide body or body_path and email_config_path but not both. Defaulting to body provided.")
+        return
+    
     if test_mode == "Y":
         print(f"Running in test mode. Emails will be sent to {sender}")
         test_mode = True
     else:
         test_mode = False
-
-    body = inputs.body
-    body_path = inputs.body_path
-    body_cfg_path = inputs.body_cfg_path
-    if body != None and (body_path != None or body_cfg_path != None):
-        print("Error: Provide body or body_path and body_cfg_path but not both. Defaulting to body provided.")
-        return
     
-    attachments = inputs.attachments_path
     print("Parsed args flow complete.")
 
     config = yaml.safe_load(open(config_path))
@@ -376,26 +458,36 @@ def jmailer():
     recipients = get_csv_as_list(recipients_path)
     print("Get recipients flow complete.")
 
-    if body_cfg_path != None:
-        body_config = yaml.safe_load(open(body_cfg_path))
-        print("Load body config flow complete.")
+    if email_config_path != None:
+        email_config = yaml.safe_load(open(email_config_path))
+        print("Load email config flow complete.")
 
     clearbit_api_key = credentials["clearbit"]["api_key"]
     print("Clearbit user flow complete.")
+
+    people_data_lab_api_key = credentials["peopledatalab"]["api_key"]
+    print("People Data Labs user flow complete.")
 
     context = ssl.create_default_context()
     smpt_connection = smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) 
     smpt_connection.login(sender, gmail_password)
     print("SMPT connection flow complete.")
  
-    names = Clearbit().get_names_from_email_list(recipients, username=clearbit_api_key)
+    msg = "Clearbit connect reached quota. Trying People Data Labs instead."
+    db_handler.Timers().exec_time(msg)
+    # names = Clearbit().get_names_from_email_list(recipients, username=clearbit_api_key)
+    names = PeopleDataLabs().get_names_from_email_list(recipients, api_key=people_data_lab_api_key)
+    print("Names fetching complete.")
 
     ### Start the Meat of the Message.
+    if subject is None:
+        subject = email_config["subject"]
+
     if body != None:
         bodies = dict(zip(recipients, body))
     else:
-        bodies = build_bodies(names, body_path, body_config)
-
+        bodies = build_bodies(names, body_path, email_config)
+        
     # Warn about emails you've already sent.
     google = db_handler.Google()
     _, gsheets = google.google_connect(credentials_path=credentials_path)
@@ -414,13 +506,13 @@ def jmailer():
 
     confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
     if confirm_send=="y":
-        send_emails(sender, recipients, smpt_connection, bodies, subject=subject, attachments=attachments, test_mode=test_mode)
+        send_emails(sender, recipients, smpt_connection, bodies, subject=subject, attachments=attachments_path, test_mode=test_mode)
     else:
         msg = "Messages not sent!"
         db_handler.Timers().exec_time(msg)
 
     ## Update Contacts db.
-    if confirm_send=="y":
+    if confirm_send=="y" and not test_mode:
         try:
             msg = "Updating database."
             db_handler.Timers().exec_time(msg)
