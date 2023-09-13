@@ -19,6 +19,7 @@ from google.auth.transport.requests import Request
 import pygsheets
 
 from tools import Timers
+import phonebooks
 
 
 DB_CONFIG_PATH = "/Users/jaimemerizalde/Desktop/JOBS 2023/software/jmailer/db_config.yaml"
@@ -215,32 +216,31 @@ class DB_handler():
         return reduced_recipients, repeated_recipients
 
     
-    def responses_to_df(self, data: dict) -> dict: 
+    def details_to_df(self, data: dict) -> dict: 
         """
-        Given a dictionary of requests.models.Response -s, 
-        return a dataframe version of these responses for our database.
+        Given a dictionary of data including the key as the detail id and the values as details such as first and last name and company name. 
+        return collect this information into one single DataFrame.
 
         Parameters
         -------
-        data (pd.DataFrame)): DataFrame of responses after some filter and formatting.
+        data (dict): Dictionary of detail id and details.
 
         Returns
         -------
-        response_df (dict): Dataframe of colleciont of respones.
+        df (dict): Dataframe of collection of respones.
         """
-        response_df = None
+        df = None
         json_data = {}
-        for key, response in data.items():
-            response_json = response.json()
+        for key, detail in data.items():
             try: 
                 json_data[key] = {
-                    "CREATEDATETIME":  dt.datetime.today().strftime('%Y-%m-%d'), # IF DOES NOT EXIST: dt.datetime.today().strftime('%Y-%m-%d')
-                    "FIRST_NAME": response_json["person"].get("name", "").get("givenName", ""),
-                    "LAST_NAME": response_json["person"].get("name", "").get("familyName", ""),
+                    "CREATEDATETIME":  dt.datetime.today().strftime("%Y-%m-%d"),
+                    "FIRST_NAME": detail.get("first_name", ""),
+                    "LAST_NAME": detail.get("last_name", ""),
                     "EMAIL": key,
-                    "COMPANY": response_json.get("company","").get("name", ""),
-                    "LAST_OUTREACH":  dt.datetime.today().strftime('%Y-%m-%d'),
-                    "FIRST_OUTREACH": dt.datetime.today().strftime('%Y-%m-%d'), # IF DOES NOT EXIST: dt.datetime.today().strftime('%Y-%m-%d')
+                    "COMPANY": detail.get("company_name", ""),
+                    "LAST_OUTREACH":  dt.datetime.today().strftime("%Y-%m-%d"),
+                    "FIRST_OUTREACH": dt.datetime.today().strftime("Y-%m-%d"),
                 }
             except Exception as e:
                 msg = f"No response recorded for {key}. " + str(e)
@@ -249,7 +249,7 @@ class DB_handler():
         if len(json_data) > 0:
             response_df = pd.DataFrame.from_dict(json_data, orient="index")
             response_df.reset_index(drop=True, inplace=True)
-        return response_df
+        return df
 
 
     def clean_df(self, df, drop_columns, pattern, permuted_columns=None) -> pd.DataFrame:
@@ -343,11 +343,10 @@ class DB_handler():
 
     def db_contacts_updater(
         self, 
-        credentials_path: str, 
-        clearbit_api_key: str,
+        credentials_path: str,
         db_identifier: str, 
         table: str,
-        recipients: list,
+        details: dict,
     ):
         """
         Updates a given database by an identifier. Usually some key. 
@@ -355,10 +354,9 @@ class DB_handler():
         Parameters
         -------
         credentials_path (str): Path to credentials.
-        clearbit_api_key (str): Clearbit API key.
         db_identifier (str): Key identifying location of database. 
         table (str): Table to write to.
-        recipients (list): List of recipients who were contacted.
+        details (dict): Dictionary of detail id and details to cross-check and update with the specified table.
 
         Returns
         -------
@@ -379,14 +377,7 @@ class DB_handler():
         wks = sh.worksheet("title", table)
         original_df = wks.get_as_df()
 
-        recipient_data = {}
-        for recipient in recipients:
-            url = f"https://person.clearbit.com/v2/combined/find?email=:{recipient}"
-            clearbit_response = requests.get(url, auth=(clearbit_api_key, None))
-            recipient_data[recipient] = clearbit_response
-
-        new_data = self.responses_to_df(recipient_data)
-
+        new_data = self.details_to_df(details)
         if not new_data is None:
             updated_data = self.update_dataframe_conditionally(new_data, original_df, merge_columns, fixed_columns, update_columns, sort_by=sort_by, ascending=False,)
             google.write_to_googlesheets(updated_data, db_identifier, gsheets, table, row_start="A1")
@@ -398,10 +389,21 @@ class DB_handler():
 
 def main():
     input = parse_args()
+    api_key = input.api_key
     credentials_path = input.credentials_path
     db_identifier = input.db_identifier
     table_identifier = input.table_identifier
     recipients = input.recipients
+
+    msg = "Updating database."
+    Timers().exec_time(msg)
+    DB_handler().db_contacts_updater(
+        credentials_path,
+        api_key,
+        db_identifier,
+        table_identifier,
+        recipients
+    )
 
     
 if __name__ == "__main__":

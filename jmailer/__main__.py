@@ -20,8 +20,8 @@ import webbrowser
 import pandas as pd
 
 import db_handler
-from phonebook_handler import Clearbit as cb
-from phonebook_handler import PeopleDataLabs as pdl
+from phonebooks import Clearbit as cb
+from phonebooks import PeopleDataLabs as pdl
 from tools import Timers, text_builder
 
 
@@ -80,11 +80,11 @@ def parse_args():
     )
     parser.add_argument(
         "-cp", "--credentials_path", type=str,
-        help="Path to a receipients file (csv)."
+        help="Path to credentials file."
     )
     parser.add_argument(
-        "-t", "--test_mode", type=str,
-        help="If \"Y\" then emails sent to sender only."
+        "-t", "--test_mode", action="store_true",
+        help="If passed then emails sent to sender only."
     )
     args = parser.parse_args()   
     return args
@@ -153,13 +153,13 @@ def add_attachment(email: EmailMessage, filepath: str) -> EmailMessage:
     return email
 
 
-def build_bodies(names, body_path, body_config):
+def build_bodies(details, body_path, body_config):
     """
     Builds email bodies based off full names and corresponding email addresses.
 
     Parameters
     -------
-    names (dict[tuple]): Dictionary of tuples corresponding to first and last names for recipient email address.
+    details (dict): Dictionary of person details including first, last names and company name.
     body_path (str): Email body path to be parsed using the body config. Recommended to use HTML formatting.
     body_config (str): Email config for the body including variables that can be quickly parsed and replaced.
 
@@ -168,8 +168,8 @@ def build_bodies(names, body_path, body_config):
     bodies (dict): Dictionary recipient email addresses and formatted body text from script.
     """
     bodies = {}
-    for recipient, name in names.items():
-        body_config["addressee"] = name[0]
+    for recipient, detail in details.items():
+        body_config["addressee"] = detail["first_name"]
         bodies[recipient] = text_builder(body_path, body_config)
     return bodies
 
@@ -271,20 +271,17 @@ def jmailer():
     email_config_path = inputs.email_config_path
     subject = inputs.subject
     credentials_path = inputs.credentials_path
-    test_mode = inputs.test_mode
     body = inputs.body
     body_path = inputs.body_path
     attachments_path = inputs.attachments_path
+    test_mode = inputs.test_mode
 
     if body != None and (body_path != None or email_config_path != None):
         print("Error: Provide body or body_path and email_config_path but not both. Defaulting to body provided.")
         return
     
-    if test_mode == "Y":
+    if test_mode:
         print(f"Running in test mode. Emails will be sent to {sender}")
-        test_mode = True
-    else:
-        test_mode = False
     
     print("Parsed args flow complete.")
 
@@ -305,7 +302,7 @@ def jmailer():
     clearbit_api_key = credentials["clearbit"]["api_key"]
     print("Clearbit user flow complete.")
 
-    people_data_lab_api_key = credentials["peopledatalab"]["api_key"]
+    api_key = credentials["peopledatalab"]["api_key"]
     print("People Data Labs user flow complete.")
 
     context = ssl.create_default_context()
@@ -316,9 +313,10 @@ def jmailer():
     msg = "Clearbit connect reached quota. Trying People Data Labs instead."
     Timers().exec_time(msg)
     # NOTE; this should really be a try statement.
+    phonebook = pdl()
     # names = cb().get_names_from_email_list(recipients, username=clearbit_api_key)
-    names = pdl().get_names_from_email_list(recipients, api_key=people_data_lab_api_key)
-    print("Names fetching complete.")
+    recipient_details = phonebook.get_details_from_email_list(recipients, api_key=api_key)
+    print("Recipient details fetching complete.")
 
     ### Start the Meat of the Message.
     if subject is None:
@@ -327,7 +325,7 @@ def jmailer():
     if body != None:
         bodies = dict(zip(recipients, body))
     else:
-        bodies = build_bodies(names, body_path, email_config)
+        bodies = build_bodies(recipient_details, body_path, email_config)
         
     # Warn about emails you've already sent.
     google = db_handler.Google()
@@ -342,7 +340,7 @@ def jmailer():
         if confirm_exclusions == "y":
             recipients = reduced_recipients
 
-    # Preview Message
+    # Preview Message.
     temp_filepath = message_previewer(bodies[list(bodies.keys())[0]])
 
     confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
@@ -352,17 +350,17 @@ def jmailer():
         msg = "Messages not sent!"
         Timers().exec_time(msg)
 
-    ## Update Contacts db.
+    # Update Contacts db.
     if confirm_send=="y" and not test_mode:
         try:
             msg = "Updating database."
             Timers().exec_time(msg)
+
             db_handler.DB_handler().db_contacts_updater(
                 credentials_path,
-                clearbit_api_key,
                 db_identifier,
                 db_table,
-                recipients
+                recipient_details,
             )
         except Exception as e:
             msg = "Something went wrong with writing to the db. " + str(e)

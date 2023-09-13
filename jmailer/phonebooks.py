@@ -60,7 +60,7 @@ class Clearbit():
 class PeopleDataLabs():
     """A class for working with People Data Labs API."""
 
-    def get_details(self, response: requests.models.Response) -> tuple:
+    def parse_details(self, response: requests.models.Response) -> tuple:
         """
         Parse response for HTTP request.
 
@@ -70,20 +70,25 @@ class PeopleDataLabs():
 
         Returns
         -------
-        (tuple): Tuple of details.
+        details (dict): Dict of details.
         """
         if not isinstance(response, requests.models.Response):
             print("Not a request.")
             return 
         response_json = response.json()
         data = response_json["data"]
-        first_name = self.format_name(data["first_name"])
-        last_name = self.format_name(data["last_name"])
-        company_name = self.format_name(data["job_company_name"])
-        return (first_name, last_name, company_name)    
+        first_name = self.format_name(data.get("first_name",""))
+        last_name = self.format_name(data.get("last_name",""))
+        company_name = self.format_name(data.get("job_company_name",""))
+
+        details = {}
+        details["first_name"] = first_name
+        details["last_name"] = last_name
+        details["company_name"] = company_name
+        return details 
 
     
-    def get_name(self, response: requests.models.Response) -> (str, str):
+    def parse_name(self, response: requests.models.Response) -> (str, str):
         """
         Parse response for HTTP request.
 
@@ -103,7 +108,6 @@ class PeopleDataLabs():
         data = response_json["data"]
         first_name = self.format_name(data["first_name"])
         last_name = self.format_name(data["last_name"])
-        company_name = self.format_name(data["company"])
         name = (first_name, last_name)
         return name
     
@@ -155,7 +159,7 @@ class PeopleDataLabs():
             }
             response = requests.get(url, params=params)
             try:
-                names[email] = self.get_name(response)
+                names[email] = self.parse_name(response)
             except Exception as e:
                 msg = str(e) + f"\nName fetching failed for: {email}. Skipping this name."
                 db_handler.Timers().exec_time(msg)
@@ -187,7 +191,7 @@ class PeopleDataLabs():
             }
             response = requests.get(url, params=params)
             try:
-                details[email] = self.get_details(response)
+                details[email] = self.parse_details(response)
             except Exception as e:
                 msg = str(e) + f"\nName fetching failed for: {email}. Skipping this name."
                 db_handler.Timers().exec_time(msg)
