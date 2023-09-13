@@ -32,7 +32,7 @@ class Clearbit():
         return name
 
 
-    def get_names_from_email_list(self, recipients_list:[str], username=None, password=None, api_key=None):
+    def get_names_from_email_list(self, email_list:[str], username=None, password=None, api_key=None):
         """
         Given a list of recipients, use Clearbit to retreive their names. Other data may be retreieved but at a later stage. 
         The username is the api_key from Clearbit. Read their docs for more info.
@@ -42,6 +42,7 @@ class Clearbit():
         username (str): Optional. Username.
         password (str): Optional. Password.
         api_key (str): API key.
+        email_list (list): List of email. 
 
         Returns
         -------
@@ -49,7 +50,7 @@ class Clearbit():
         """
         names = {}
         # NOTE: may want to batch this in the future or too many requests will be attempted too quickly.
-        for email in recipients_list:
+        for email in email_list:
             url = f"https://person.clearbit.com/v2/combined/find?email=:{email}"
             clearbit_response = requests.get(url, auth=(api_key, password))
             names[email] = self.get_name(clearbit_response)
@@ -58,8 +59,36 @@ class Clearbit():
 
 class PeopleDataLabs():
     """A class for working with People Data Labs API."""
+
+    def parse_details(self, response: requests.models.Response) -> tuple:
+        """
+        Parse response for HTTP request.
+
+        Parameters
+        -------
+        response (requests.models.Response): Http response with person data.
+
+        Returns
+        -------
+        details (dict): Dict of details.
+        """
+        if not isinstance(response, requests.models.Response):
+            print("Not a request.")
+            return 
+        response_json = response.json()
+        data = response_json["data"]
+        first_name = self.format_name(data.get("first_name",""))
+        last_name = self.format_name(data.get("last_name",""))
+        company_name = self.format_name(data.get("job_company_name",""))
+
+        details = {}
+        details["first_name"] = first_name
+        details["last_name"] = last_name
+        details["company_name"] = company_name
+        return details 
+
     
-    def get_name(self, response: requests.models.Response) -> (str, str):
+    def parse_name(self, response: requests.models.Response) -> (str, str):
         """
         Parse response for HTTP request.
 
@@ -96,7 +125,7 @@ class PeopleDataLabs():
         -------
         f_name (str): Formatted name.
         """
-        remove_spaces = re.sub("\s+|\s+$", "", name)
+        remove_spaces = re.sub("^\s+|\s+$", "", name)
 
         # Capitolize across special characters.
         pattern = "(^|[^a-zA-Z0-9])([a-zA-Z0-9])"
@@ -104,34 +133,66 @@ class PeopleDataLabs():
         return f_name
     
 
-    def get_names_from_email_list(self, recipients_list:[str], username=None, password=None, api_key=None):
+    def get_names_from_email_list(self, email_list:[str], username=None, password=None, api_key=None):
         """
         Given a list of recipients, use People Data Labs to retreive their names. 
         Other data may be retreieved but at a later stage. 
-        The username is the api_key from People Data Labs. Read their docs for more info.
 
         Parameters
         -------
+        email_list (list): List of emails to retrieve data for. 
         username (str): Username.
         password (str): Password.
         api_key (str): API key.
 
         Returns
         -------
-        names {}: Dict of emails to names.
+        names (dict): Dict of emails to names.
         """
         names = {}
         # NOTE: may want to batch this in the future or too many requests will be attempted too quickly.
         url = f"https://api.peopledatalabs.com/v5/person/enrich"
-        for email in recipients_list:
+        for email in email_list:
             params = {
                 "api_key": api_key,
                 "email": email
             }
             response = requests.get(url, params=params)
             try:
-                names[email] = self.get_name(response)
+                names[email] = self.parse_name(response)
             except Exception as e:
                 msg = str(e) + f"\nName fetching failed for: {email}. Skipping this name."
                 db_handler.Timers().exec_time(msg)
         return names
+    
+    
+    def get_details_from_email_list(self, email_list: [str], username=None, password=None, api_key=None):
+        """
+        Get multiple details from a response object returned by People Data Labs API.
+
+        Parameters
+        -------
+        email_list (list): List of emails to retrieve data for. 
+        username (str): Username.
+        password (str): Password.
+        api_key (str): API key.
+
+        Returns
+        -------
+        details (dict): Dictionary with email as key and details retrieved as values.
+        """
+        details = {}
+        # NOTE: may want to batch this in the future or too many requests will be attempted too quickly.
+        url = f"https://api.peopledatalabs.com/v5/person/enrich"
+        for email in email_list:
+            params = {
+                "api_key": api_key,
+                "email": email
+            }
+            response = requests.get(url, params=params)
+            try:
+                details[email] = self.parse_details(response)
+            except Exception as e:
+                msg = str(e) + f"\nName fetching failed for: {email}. Skipping this name."
+                db_handler.Timers().exec_time(msg)
+        return details
