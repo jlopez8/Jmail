@@ -38,7 +38,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # dev_nbs
-*dev_nb*
+*dev_nb.ipynb*
 
 
 # Unit test / coverage reports
