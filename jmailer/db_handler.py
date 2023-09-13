@@ -18,6 +18,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import pygsheets
 
+from tools import Timers
+
 
 DB_CONFIG_PATH = "/Users/jaimemerizalde/Desktop/JOBS 2023/software/jmailer/db_config.yaml"
 
@@ -46,31 +48,6 @@ def parse_args():
     )
     args = parser.parse_args()
     return args
-
-
-class Timers():
-    """A class for  Timing-stamping cell calls."""
-    import datetime as dt
-
-    def exec_time(self, msg="Completed task"):
-        """
-        Runtime message tracking cell progress. Prints an message and a timestamp.
-        
-        Parameters
-        -------
-        msg (str): User provided message. Defaults to a generic statement.
-        
-        Returns
-        -------
-        None
-        """
-        try:
-            now = dt.datetime.now().strftime("%H:%M:%S - %Y-%m-%d")
-            print(
-                "{msg} Timestamp: {now}".format(msg=msg, now=now)
-            )
-        except Exception as e:
-            print("Warning: unable to Run exec_time.\nRawmessage: {msg}.\n{error}".format(msg=msg, error=e))
 
 
 class Google():
