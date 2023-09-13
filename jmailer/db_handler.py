@@ -394,6 +394,21 @@ def main():
     db_identifier = input.db_identifier
     table_identifier = input.table_identifier
     recipients = input.recipients
+    
+
+    msg = "Updating database."
+    Timers().exec_time(msg)
+
+    phonebook = phonebooks.PeopleDataLabs()
+    details = phonebook.get_details_from_email_list(recipients, api_key=api_key)
+
+    DB_handler().db_contacts_updater(
+        credentials_path,
+        api_key,
+        db_identifier,
+        table_identifier,
+        details
+    )
 
     msg = "Updating database."
     Timers().exec_time(msg)
