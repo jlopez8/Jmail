@@ -1,3 +1,4 @@
+# Author: Dr. Jaime Alexis Lopez-Merizalde
 # gmailer main.py
 
 import os
@@ -17,6 +18,9 @@ from email.message import EmailMessage
 import pandas as pd
 
 import db_handler
+from phonebook_handler import Clearbit as cb
+from phonebook_handler import PeopleDataLabs as pdl
+from tools import Timers, text_builder
 
 
 def parse_args():
@@ -101,7 +105,7 @@ def parse_config(config: dict):
     return credentials
 
 
-def get_csv_as_list(filepath: str) -> list:
+def get_recipients_from_path(filepath: str) -> list:
     """
     Get list using a path to a csv.
 
@@ -112,228 +116,39 @@ def get_csv_as_list(filepath: str) -> list:
     Returns
     -------
     ([str]): List of values.
-    
     """
     recipients = pd.read_csv(filepath, header=None)
     return recipients[0].values.tolist()
 
 
-class Clearbit():
-    """A class for working with Clearbit API."""
-    def get_name(self, response: requests.models.Response) -> (str, str):
-        """
-        Parse response for HTTP request.
-
-        Parameters
-        -------
-        response (requests.models.Response): Http response with person data.
-
-        Returns
-        -------
-        name (str, str): Tuple of first and last name. 
-        """
-        if not isinstance(response, requests.models.Response):
-            print("Not a request.")
-            return 
-        name = (None, None)
-        data = response.json()
-        person = data["person"]
-        first_name = person["name"]["givenName"]
-        last_name = person["name"]["familyName"]
-        name = (first_name, last_name)
-        return name
-
-
-    def get_names_from_email_list(self, recipients_list:[str], username=None, password=None, api_key=None):
-        """
-        Given a list of recipients, use Clearbit to retreive their names. Other data may be retreieved but at a later stage. 
-        The username is the api_key from Clearbit. Read their docs for more info.
-
-        Parameters
-        -------
-        username (str): Optional. Username.
-        password (str): Optional. Password.
-        api_key (str): API key.
-
-        Returns
-        -------
-        names {}: Dict of emails to names.
-        """
-        names = {}
-        # NOTE: may want to batch this in the future or too many requests will be attempted too quickly.
-        for email in recipients_list:
-            url = f"https://person.clearbit.com/v2/combined/find?email=:{email}"
-            clearbit_response = get_response(url, username=username, password=password, api_key=api_key)
-            names[email] = self.get_name(clearbit_response)
-        return names
-
-
-class PeopleDataLabs():
-    """A class for working with People Data Labs API."""
-    
-    def get_name(self, response: requests.models.Response) -> (str, str):
-        """
-        Parse response for HTTP request.
-
-        Parameters
-        -------
-        response (requests.models.Response): Http response with person data.
-
-        Returns
-        -------
-        name (str, str): Tuple of first and last name. 
-        """
-        if not isinstance(response, requests.models.Response):
-            print("Not a request.")
-            return 
-        name = (None, None)
-        response_json = response.json()
-        data = response_json["data"]
-        # data = response_json.get("data", {"first_name": "<FIRST_NAME>", "last_name": "<LAST_NAME>"})
-        first_name = self.format_name(data["first_name"])
-        last_name = self.format_name(data["last_name"])
-        name = (first_name, last_name)
-        return name
-    
-
-    def format_name(self, name: str):
-        """
-        Takes a name with potential special characters and extra spaces to return a properly-formatted name. 
-        Capitalizes first letters of place-value locations.
-
-        Parameters
-        -------
-        name (str): Name with potential special characters or spaces. 
-
-        Returns
-        -------
-        f_name (str): Formatted name.
-        """
-        remove_spaces = re.sub("\s+|\s+$", "", name)
-
-        # Split by special Characters.
-        pattern = "(^|[^a-zA-Z0-9])([a-zA-Z0-9])"
-        f_name = re.sub(pattern, lambda x: x.group(1) + x.group(2).upper(),remove_spaces)
-        return f_name
-    
-
-    def get_names_from_email_list(self, recipients_list:[str], username=None, password=None, api_key=None):
-        """
-        Given a list of recipients, use People Data Labs to retreive their names. 
-        Other data may be retreieved but at a later stage. 
-        The username is the api_key from People Data Labs. Read their docs for more info.
-
-        Parameters
-        -------
-        username (str): Username.
-        password (str): Password.
-        api_key (str): API key.
-
-        Returns
-        -------
-        names {}: Dict of emails to names.
-        """
-        names = {}
-        # NOTE: may want to batch this in the future or too many requests will be attempted too quickly.
-        url = f"https://api.peopledatalabs.com/v5/person/enrich"
-        for email in recipients_list:
-            params = {
-                "api_key": api_key,
-                "email": email
-            }
-            response = requests.get(url, params=params)
-            try:
-                names[email] = self.get_name(response)
-            except Exception as e:
-                msg = str(e) + f"\nName fetching failed for: {email}. Skipping this name."
-                db_handler.Timers().exec_time(msg)
-        return names
-    
-
-def get_response(url: str, username=None, password=None, api_key=None):
-    """
-    Get a response from API using HTTP.
-
-    Parameters
-    -------
-    url (str): Url for API request.
-    username (str): Optional. Username.
-    password (str): Optional. Password.
-    api_key (str): API key.
-
-    Returns
-    -------
-    api_response (requests.models.Response): Response.
-    """
-    api_response = None
-    api_response = requests.get(url, auth=(username, password))
-    return api_response
-
-
 def add_attachment(email: EmailMessage, filepath: str) -> EmailMessage:
-        """
-        Given original email message. May or may not include an attachment already.
-
-        Parameters:
-        -------
-        email (EmailMessage): EmailMessage.
-        filepath (str): Filepath to attachment.
-
-        Returns
-        -------
-        email (EmailMessage): Mail message with new attachment.
-        """
-        # Attachments
-        with open(filepath, "rb") as fp:
-            data = fp.read()
-
-        # guess encoding
-        ctype, encoding = mimetypes.guess_type(filepath)
-        if ctype is None or encoding is not None:
-            # No guess could be made, or the file is encoded (compressed), so
-            # use a generic bag-of-bits type.
-            ctype = "application/octet-stream"
-        maintype, subtype = ctype.split("/", 1)
-
-        email.add_attachment(data, maintype=maintype, subtype=subtype, filename=os.path.basename(filepath))
-        print(f"Successfully attached: {filepath}")
-        return email
-
-
-def build_text(text_path: str, text_vars=None) -> str:
     """
-    Using passed-along dictionary of variable names to values, fill in the 
-    text file located at text_path. May be passed on no variables to fill, in which case the text body is returned as-is.
-    Ignores case (case-insensitive). 
+    Given original email message. May or may not include an attachment already.
 
-    Parameters
+    Parameters:
     -------
-    text_path (str): Path to text file.
-    text_vars (dict): Dictionary of variables. Optional
+    email (EmailMessage): EmailMessage.
+    filepath (str): Filepath to attachment.
 
     Returns
     -------
-    query (str): Filled-in text body by value using the text_vars dictionary.
+    email (EmailMessage): Mail message with new attachment.
     """
+    # Attachments
+    with open(filepath, "rb") as fp:
+        data = fp.read()
 
-    DEFAULT_FILL_IN = ""
+    # guess encoding
+    ctype, encoding = mimetypes.guess_type(filepath)
+    if ctype is None or encoding is not None:
+        # No guess could be made, or the file is encoded (compressed), so
+        # use a generic bag-of-bits type.
+        ctype = "application/octet-stream"
+    maintype, subtype = ctype.split("/", 1)
 
-    # Get the text.
-    with open(text_path, "r+") as f:
-        text = f.read() 
-    f.close()
-    if text_vars == None:
-        return text
-
-    # Extract variables from the text.
-    variables_in_text = re.findall("\{(.*?)\}", text, flags=re.IGNORECASE)
-
-    # do a replacement: each time call local_vars...
-    for var in variables_in_text:
-        replace_me = "\{" + var + "\}"
-        replace_with = str(text_vars.get(var,DEFAULT_FILL_IN))
-        text = re.sub(replace_me, replace_with, text)
-    return text
+    email.add_attachment(data, maintype=maintype, subtype=subtype, filename=os.path.basename(filepath))
+    print(f"Successfully attached: {filepath}")
+    return email
 
 
 def build_bodies(names, body_path, body_config):
@@ -343,8 +158,8 @@ def build_bodies(names, body_path, body_config):
     Parameters
     -------
     names (dict[tuple]): Dictionary of tuples corresponding to first and last names for recipient email address.
-    body_path (str): Optional. Email body path to be parsed using the body config. Recommended to use HTML formatting.
-    body_config (str): Optional. Email config for the body including variables that can be quickly parsed and replaced.
+    body_path (str): Email body path to be parsed using the body config. Recommended to use HTML formatting.
+    body_config (str): Email config for the body including variables that can be quickly parsed and replaced.
 
     Returns
     -------
@@ -353,7 +168,7 @@ def build_bodies(names, body_path, body_config):
     bodies = {}
     for recipient, name in names.items():
         body_config["addressee"] = name[0]
-        bodies[recipient] = build_text(body_path, body_config)
+        bodies[recipient] = text_builder(body_path, body_config)
     return bodies
 
 
@@ -455,7 +270,7 @@ def jmailer():
     gmail_password = credentials["gmail"]["app_password"]
     print("Get passwords flow complete.")
 
-    recipients = get_csv_as_list(recipients_path)
+    recipients = get_recipients_from_path(recipients_path)
     print("Get recipients flow complete.")
 
     if email_config_path != None:
@@ -474,9 +289,10 @@ def jmailer():
     print("SMPT connection flow complete.")
  
     msg = "Clearbit connect reached quota. Trying People Data Labs instead."
-    db_handler.Timers().exec_time(msg)
-    # names = Clearbit().get_names_from_email_list(recipients, username=clearbit_api_key)
-    names = PeopleDataLabs().get_names_from_email_list(recipients, api_key=people_data_lab_api_key)
+    Timers().exec_time(msg)
+    # NOTE; this should really be a try statement.
+    # names = cb().get_names_from_email_list(recipients, username=clearbit_api_key)
+    names = pdl().get_names_from_email_list(recipients, api_key=people_data_lab_api_key)
     print("Names fetching complete.")
 
     ### Start the Meat of the Message.
@@ -496,7 +312,7 @@ def jmailer():
     if len(repeated_recipients) != 0: 
         msg = f"Found {str(len(repeated_recipients))} emails already in the database."
         msg += f"\nThey are\n{repeated_recipients}"
-        db_handler.Timers().exec_time(msg)
+        Timers().exec_time(msg)
         confirm_exclusions = input(f"\nDo you want to exclude these recipients? y - to exclude from send?")
         if confirm_exclusions == "y":
             recipients = reduced_recipients
@@ -509,13 +325,13 @@ def jmailer():
         send_emails(sender, recipients, smpt_connection, bodies, subject=subject, attachments=attachments_path, test_mode=test_mode)
     else:
         msg = "Messages not sent!"
-        db_handler.Timers().exec_time(msg)
+        Timers().exec_time(msg)
 
     ## Update Contacts db.
     if confirm_send=="y" and not test_mode:
         try:
             msg = "Updating database."
-            db_handler.Timers().exec_time(msg)
+            Timers().exec_time(msg)
             db_handler.DB_handler().db_contacts_updater(
                 credentials_path,
                 clearbit_api_key,
@@ -525,10 +341,10 @@ def jmailer():
             )
         except Exception as e:
             msg = "Something went wrong with writing to the db. " + str(e)
-            db_handler.Timers().exec_time(msg)
+            Timers().exec_time(msg)
     else:
         msg = "Database not updated."
-        db_handler.Timers().exec_time(msg)
+        Timers().exec_time(msg)
     return
 
 
