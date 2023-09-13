@@ -15,6 +15,8 @@ import ssl
 import mimetypes
 from email.message import EmailMessage
 
+import webbrowser
+
 import pandas as pd
 
 import db_handler
@@ -172,6 +174,29 @@ def build_bodies(names, body_path, body_config):
     return bodies
 
 
+def message_previewer(body: str) -> str:
+    """
+    Allows preview message with a browser.
+
+    Parameters
+    -------
+    body (str): String with HTML formatted content.
+
+    Returns
+    -------
+    filepath (str): Filepath temporary for message previewer.
+    """
+    PREVIEW_FILENAME = "./preview_body.html"
+    f = open(PREVIEW_FILENAME, "w")
+    f.write(body)
+    f.close()
+
+    filepath = os.getcwd() + "/" + PREVIEW_FILENAME
+    web_path = "file:///" + filepath
+    webbrowser.open_new_tab(web_path)
+    return filepath
+
+
 def send_email(sender: str, recipients: list, smpt_connection, subject="", body="", attachments=None, test_mode=True):
     """
     Send an email via SMTP. Recommended body is provided as HTML formatted text.
@@ -317,8 +342,8 @@ def jmailer():
         if confirm_exclusions == "y":
             recipients = reduced_recipients
 
-    print("Message preview: \n")
-    print(bodies[list(bodies.keys())[0]])
+    # Preview Message
+    temp_filepath = message_previewer(bodies[list(bodies.keys())[0]])
 
     confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
     if confirm_send=="y":
@@ -345,6 +370,9 @@ def jmailer():
     else:
         msg = "Database not updated."
         Timers().exec_time(msg)
+    
+    # Cleanup
+    os.remove(temp_filepath)
     return
 
 
