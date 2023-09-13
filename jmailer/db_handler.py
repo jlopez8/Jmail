@@ -410,6 +410,16 @@ def main():
         details
     )
 
+    msg = "Updating database."
+    Timers().exec_time(msg)
+    DB_handler().db_contacts_updater(
+        credentials_path,
+        api_key,
+        db_identifier,
+        table_identifier,
+        recipients
+    )
+
     
 if __name__ == "__main__":
     Timers().exec_time(f"")
