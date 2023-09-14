@@ -50,7 +50,7 @@ def parse_args():
         help="Email sender."
     )
     parser.add_argument(
-        "-to", "--recipients", type=str,
+        "-to", "--recipients", type=str, action="append",
         nargs="+",
         help="Email recipients."
     )

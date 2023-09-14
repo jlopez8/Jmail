@@ -40,12 +40,16 @@ def parse_args():
         help="Database key identifier. Possibly a name."
     )
     parser.add_argument(
-        "-t", "--table", type=str,
-        help="Table name."
+        "-dt", "--db_table", type=str,
+        help="Database table identifier."
     )
     parser.add_argument(
-        "-r", "--recipients", type=str,
+        "-r", "--recipients", type=str, action="append",
         help="List of recipients."
+    )
+    parser.add_argument(
+        "--local_phonebook_path", type=str,
+        help="Path to local phonebook csv."
     )
     args = parser.parse_args()
     return args
@@ -389,39 +393,34 @@ class DB_handler():
 
 def main():
     input = parse_args()
-    api_key = input.api_key
     credentials_path = input.credentials_path
     db_identifier = input.db_identifier
-    table_identifier = input.table_identifier
+    db_table = input.db_table
     recipients = input.recipients
-    
-    msg = "Updating database."
+    local_phonebook_path = input.local_phonebook_path
+
+    msg = "Parsed args flow complete."
     Timers().exec_time(msg)
 
+    msg = "Fetching phonebook."
+    Timers().exec_time(msg)
     # phonebook = phonebooks.PeopleDataLabs()
     phonebook = phonebooks.LocalPhoneBook()
+    print(recipients)
+    print(type(recipients))
+    # details = phonebook.get_details_from_email_list(recipients, local_phonebook_path)
 
-    # details = phonebook.get_details_from_email_list(recipients, api_key=api_key)
-    
-
-    DB_handler().db_contacts_updater(
-        credentials_path,
-        api_key,
-        db_identifier,
-        table_identifier,
-        details,
-    )
-
-    msg = "Updating database."
-    Timers().exec_time(msg)
-    DB_handler().db_contacts_updater(
-        credentials_path,
-        api_key,
-        db_identifier,
-        table_identifier,
-        recipients
-    )
+    # msg = "Updating database."
+    # Timers().exec_time(msg)
+    # DB_handler().db_contacts_updater(
+    #     credentials_path,
+    #     db_identifier,
+    #     db_table,
+    #     details
+    # )
+    return
 
     
 if __name__ == "__main__":
-    Timers().exec_time(f"")
+    main()
+    Timers().exec_time(f"Completed db_handler run.")
