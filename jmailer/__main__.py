@@ -22,6 +22,7 @@ import pandas as pd
 import db_handler
 from phonebooks import Clearbit as cb
 from phonebooks import PeopleDataLabs as pdl
+from phonebooks import LocalPhoneBook as lpb
 from tools import Timers, text_builder
 
 
@@ -81,6 +82,10 @@ def parse_args():
     parser.add_argument(
         "-cp", "--credentials_path", type=str,
         help="Path to credentials file."
+    )
+    parser.add_argument(
+        "--local_phonebook_path", type=str,
+        help="Path to local phonebook csv."
     )
     parser.add_argument(
         "-t", "--test_mode", action="store_true",
@@ -274,6 +279,7 @@ def jmailer():
     body = inputs.body
     body_path = inputs.body_path
     attachments_path = inputs.attachments_path
+    local_phonebook_path = inputs.local_phonebook_path
     test_mode = inputs.test_mode
 
     if body != None and (body_path != None or email_config_path != None):
@@ -313,9 +319,10 @@ def jmailer():
     msg = "Clearbit connect reached quota. Trying People Data Labs instead."
     Timers().exec_time(msg)
     # NOTE; this should really be a try statement.
-    phonebook = pdl()
+    phonebook = lpb()
     # names = cb().get_names_from_email_list(recipients, username=clearbit_api_key)
-    recipient_details = phonebook.get_details_from_email_list(recipients, api_key=api_key)
+    # recipient_details = phonebook.get_details_from_email_list(recipients, api_key=api_key)
+    recipient_details = phonebook.get_details_from_email_list(recipients, local_phonebook_path)
     print("Recipient details fetching complete.")
 
     ### Start the Meat of the Message.
@@ -369,7 +376,7 @@ def jmailer():
         msg = "Database not updated."
         Timers().exec_time(msg)
     
-    # Cleanup
+    # Cleanup.
     os.remove(temp_filepath)
     return
 

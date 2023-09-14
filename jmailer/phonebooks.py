@@ -4,6 +4,7 @@
 import regex as re
 import requests 
 import db_handler
+from tools import Searchers
 
 
 class Clearbit():
@@ -190,6 +191,70 @@ class PeopleDataLabs():
                 "email": email
             }
             response = requests.get(url, params=params)
+            try:
+                details[email] = self.parse_details(response)
+            except Exception as e:
+                msg = str(e) + f"\nName fetching failed for: {email}. Skipping this name."
+                db_handler.Timers().exec_time(msg)
+        return details
+
+
+class LocalPhoneBook():
+    """A class for managing a local phonebook repo."""
+    import pandas as pd
+
+    # under dev check nb
+    def parse_details(self, response: requests.models.Response) -> tuple:
+        """
+        Parse response for HTTP request.
+
+        Parameters
+        -------
+        response (requests.models.Response): Http response with person data.
+
+        Returns
+        -------
+        details (dict): Dict of details.
+        """
+        if not isinstance(response, requests.models.Response):
+            print("Not a request.")
+            return 
+        response_json = response.json()
+        data = response_json["data"]
+        first_name = self.format_name(data.get("first_name",""))
+        last_name = self.format_name(data.get("last_name",""))
+        company_name = self.format_name(data.get("job_company_name",""))
+
+        details = {}
+        details["first_name"] = first_name
+        details["last_name"] = last_name
+        details["company_name"] = company_name
+        return details 
+
+    # under dev check nb
+    def get_details_from_email_list(self, email_list: [str], filepath:str):
+        """
+        Get multiple details from a local csv.
+
+        Parameters
+        -------
+        email_list (list): List of emails to retrieve data for. 
+        filepath (str): Filepath to localphonebook.
+
+        Returns
+        -------
+        details (dict): Dictionary with email as key and details retrieved as values.
+        """
+        details = {}
+
+        S = Searchers()
+
+        df = pd.read_csv(filepath)
+
+        for email in email_list:
+            
+            # record = S.search_df_rows(, [email])
+
             try:
                 details[email] = self.parse_details(response)
             except Exception as e:
