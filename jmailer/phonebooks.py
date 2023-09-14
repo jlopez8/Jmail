@@ -3,8 +3,10 @@
 
 import regex as re
 import requests 
+import pandas as pd
 import db_handler
 from tools import Searchers, Formatters
+
 
 
 class Clearbit():
@@ -180,12 +182,10 @@ class PeopleDataLabs():
 
 class LocalPhoneBook():
     """A class for managing a local phonebook repo."""
-    import pandas as pd
 
-    # under dev check nb
-    def parse_details(self, response: requests.models.Response) -> tuple:
+    def parse_details(self, record: pd.DataFrame) -> dict:
         """
-        Parse response for HTTP request.
+        Parse for a record as a DataFrame. Returns dictionary of details.
 
         Parameters
         -------
@@ -193,16 +193,15 @@ class LocalPhoneBook():
 
         Returns
         -------
-        details (dict): Dict of details.
+        details (dict): Dict of parsed and formatted details.
         """
-        if not isinstance(response, requests.models.Response):
-            print("Not a request.")
+        if not isinstance(record, pd.DataFrame):
+            print("Record is not a Pandas DataFrame.")
             return 
-        response_json = response.json()
-        data = response_json["data"]
-        first_name = self.format_name(data.get("first_name",""))
-        last_name = self.format_name(data.get("last_name",""))
-        company_name = self.format_name(data.get("job_company_name",""))
+
+        first_name = Formatters().format_name(record["FIRST_NAME"].tolist()[0])
+        last_name = Formatters().format_name(record["LAST_NAME"].tolist()[0])
+        company_name = Formatters().format_name(record["COMPANY"].tolist()[0])
 
         details = {}
         details["first_name"] = first_name
@@ -210,32 +209,27 @@ class LocalPhoneBook():
         details["company_name"] = company_name
         return details 
 
-    # under dev check nb
-    def get_details_from_email_list(self, email_list: [str], filepath:str):
+    def get_details_from_email_list(self, email_list: [str], filepath:str) -> dict:
+
         """
         Get multiple details from a local csv.
-
         Parameters
         -------
         email_list (list): List of emails to retrieve data for. 
-        filepath (str): Filepath to localphonebook.
+        filepath (str): Filepath to local phonebook csv.
 
         Returns
         -------
         details (dict): Dictionary with email as key and details retrieved as values.
         """
+
         details = {}
-
-        S = Searchers()
-
         df = pd.read_csv(filepath)
 
         for email in email_list:
-            
-            # record = S.search_df_rows(, [email])
-
+            record = Searchers.search_df_rows(df, [email])
             try:
-                details[email] = self.parse_details(response)
+                details[email] = self.parse_details(record)
             except Exception as e:
                 msg = str(e) + f"\nName fetching failed for: {email}. Skipping this name."
                 db_handler.Timers().exec_time(msg)
