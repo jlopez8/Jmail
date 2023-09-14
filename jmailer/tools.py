@@ -131,3 +131,27 @@ class Searchers():
             filtered_df = df0.loc[mask.any(axis=1)]
         return filtered_df
     
+
+class Formatters():
+    """A class for formatting strings."""
+
+    def format_name(self, name: str) -> str:
+        """
+        Takes a name with potential special characters and extra spaces to return a properly-formatted name. 
+        Capitolizes first letters of place-value locations.
+
+        Parameters
+        -------
+        name (str): Name with potential special characters or spaces. 
+
+        Returns
+        -------
+        f_name (str): Formatted name.
+        """
+        remove_spaces = re.sub("^\s+|\s+$", "", name)
+
+        # Capitolize across special characters.
+        pattern = "(^|[^a-zA-Z0-9])([a-zA-Z0-9])"
+        f_name = re.sub(pattern, lambda x: x.group(1) + x.group(2).upper(),remove_spaces)
+        return f_name
+    

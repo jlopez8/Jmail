@@ -4,7 +4,7 @@
 import regex as re
 import requests 
 import db_handler
-from tools import Searchers
+from tools import Searchers, Formatters
 
 
 class Clearbit():
@@ -61,7 +61,7 @@ class Clearbit():
 class PeopleDataLabs():
     """A class for working with People Data Labs API."""
 
-    def parse_details(self, response: requests.models.Response) -> tuple:
+    def parse_details(self, response: requests.models.Response) -> dict:
         """
         Parse response for HTTP request.
 
@@ -78,9 +78,9 @@ class PeopleDataLabs():
             return 
         response_json = response.json()
         data = response_json["data"]
-        first_name = self.format_name(data.get("first_name",""))
-        last_name = self.format_name(data.get("last_name",""))
-        company_name = self.format_name(data.get("job_company_name",""))
+        first_name = Formatters().format_name(data.get("first_name",""))
+        last_name = Formatters().format_name(data.get("last_name",""))
+        company_name = Formatters().format_name(data.get("job_company_name",""))
 
         details = {}
         details["first_name"] = first_name
@@ -107,31 +107,10 @@ class PeopleDataLabs():
         name = (None, None)
         response_json = response.json()
         data = response_json["data"]
-        first_name = self.format_name(data["first_name"])
-        last_name = self.format_name(data["last_name"])
+        first_name = Formatters().format_name(data["first_name"])
+        last_name = Formatters().format_name(data["last_name"])
         name = (first_name, last_name)
         return name
-    
-
-    def format_name(self, name: str) -> str:
-        """
-        Takes a name with potential special characters and extra spaces to return a properly-formatted name. 
-        Capitalizes first letters of place-value locations.
-
-        Parameters
-        -------
-        name (str): Name with potential special characters or spaces. 
-
-        Returns
-        -------
-        f_name (str): Formatted name.
-        """
-        remove_spaces = re.sub("^\s+|\s+$", "", name)
-
-        # Capitolize across special characters.
-        pattern = "(^|[^a-zA-Z0-9])([a-zA-Z0-9])"
-        f_name = re.sub(pattern, lambda x: x.group(1) + x.group(2).upper(),remove_spaces)
-        return f_name
     
 
     def get_names_from_email_list(self, email_list:[str], username=None, password=None, api_key=None):
