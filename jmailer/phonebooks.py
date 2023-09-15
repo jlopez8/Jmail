@@ -209,10 +209,11 @@ class LocalPhoneBook():
         details["company_name"] = company_name
         return details 
 
-    def get_details_from_email_list(self, email_list: [str], filepath:str) -> dict:
 
+    def get_details_from_email_list(self, email_list: [str], filepath:str) -> dict:
         """
         Get multiple details from a local csv.
+
         Parameters
         -------
         email_list (list): List of emails to retrieve data for. 
@@ -222,7 +223,6 @@ class LocalPhoneBook():
         -------
         details (dict): Dictionary with email as key and details retrieved as values.
         """
-
         details = {}
         df = pd.read_csv(filepath)
 

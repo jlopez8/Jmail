@@ -3,6 +3,7 @@
 
 import os
 import argparse
+import shlex
 from pathlib import Path
 
 import datetime as dt
@@ -25,12 +26,21 @@ import phonebooks
 DB_CONFIG_PATH = "/Users/jaimemerizalde/Desktop/JOBS 2023/software/jmailer/db_config.yaml"
 
 def parse_args():
+    def convert_arg_line_to_args(arg_line):
+        for arg in shlex.split(arg_line):
+            if not arg.strip():
+                continue
+            yield arg
+
     parser = argparse.ArgumentParser(
-        prog="Insurance Providers Report.",
-        description="Post to insurance provider report.",
-        epilog="The insurance provider report.",
+        prog="db_handler.",
+        description="A package for handling database interactions.",
+        epilog="Thank you for using db_handler.",
         fromfile_prefix_chars="@",
     )
+
+    parser.convert_arg_line_to_args = convert_arg_line_to_args
+
     parser.add_argument(
         "-c", "--credentials_path", type=str,
         help="Credentials path."
@@ -44,7 +54,8 @@ def parse_args():
         help="Database table identifier."
     )
     parser.add_argument(
-        "-r", "--recipients", type=str, action="append",
+        "-r", "--recipients", type=str,
+        nargs="*",
         help="List of recipients."
     )
     parser.add_argument(
@@ -231,9 +242,9 @@ class DB_handler():
 
         Returns
         -------
-        df (dict): Dataframe of collection of respones.
+        response_df (dict): Dataframe of collection of respones.
         """
-        df = None
+        response_df = None
         json_data = {}
         for key, detail in data.items():
             try: 
@@ -244,7 +255,7 @@ class DB_handler():
                     "EMAIL": key,
                     "COMPANY": detail.get("company_name", ""),
                     "LAST_OUTREACH":  dt.datetime.today().strftime("%Y-%m-%d"),
-                    "FIRST_OUTREACH": dt.datetime.today().strftime("Y-%m-%d"),
+                    "FIRST_OUTREACH": dt.datetime.today().strftime("%Y-%m-%d"),
                 }
             except Exception as e:
                 msg = f"No response recorded for {key}. " + str(e)
@@ -253,7 +264,7 @@ class DB_handler():
         if len(json_data) > 0:
             response_df = pd.DataFrame.from_dict(json_data, orient="index")
             response_df.reset_index(drop=True, inplace=True)
-        return df
+        return response_df
 
 
     def clean_df(self, df, drop_columns, pattern, permuted_columns=None) -> pd.DataFrame:
@@ -382,6 +393,7 @@ class DB_handler():
         original_df = wks.get_as_df()
 
         new_data = self.details_to_df(details)
+
         if not new_data is None:
             updated_data = self.update_dataframe_conditionally(new_data, original_df, merge_columns, fixed_columns, update_columns, sort_by=sort_by, ascending=False,)
             google.write_to_googlesheets(updated_data, db_identifier, gsheets, table, row_start="A1")
@@ -406,18 +418,17 @@ def main():
     Timers().exec_time(msg)
     # phonebook = phonebooks.PeopleDataLabs()
     phonebook = phonebooks.LocalPhoneBook()
-    print(recipients)
-    print(type(recipients))
-    # details = phonebook.get_details_from_email_list(recipients, local_phonebook_path)
 
-    # msg = "Updating database."
-    # Timers().exec_time(msg)
-    # DB_handler().db_contacts_updater(
-    #     credentials_path,
-    #     db_identifier,
-    #     db_table,
-    #     details
-    # )
+    details = phonebook.get_details_from_email_list(recipients, local_phonebook_path)
+
+    msg = "Updating database."
+    Timers().exec_time(msg)
+    DB_handler().db_contacts_updater(
+        credentials_path,
+        db_identifier,
+        db_table,
+        details
+    )
     return
 
     
