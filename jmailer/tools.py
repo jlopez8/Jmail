@@ -63,3 +63,95 @@ def text_builder(text_path: str, text_vars=None) -> str:
         replace_with = str(text_vars.get(var,DEFAULT_FILL_IN))
         text = re.sub(replace_me, replace_with, text)
     return text
+
+
+class Searchers():
+    """A class for finding things."""
+    import pandas as pd
+
+    def search_df_rows(df: pd.DataFrame, search_list: list) -> pd.DataFrame:
+        """
+        Find the rows matching values in a search list.
+
+        Parameters
+        -------
+        df (pd.DataFrame): DataFrame to search.
+        search_list (list): List of search terms to try.
+
+        Returns
+        -------
+        filtered_df (pd.DataFrame): A DataFrame with row(s) in original Data Frame matching the results.
+        """
+        df0 = df.copy(deep=True)
+
+
+        def search_string(s, search):
+            """
+            Searches for term search in s. Ingores case.
+
+            Parameters
+            -------
+            s (str): String to be searched. Ignores case.
+            search (str): Term to search.
+
+            Returns
+            -------
+            (bool): True if search is found in s. False otherwise.
+            """
+            return search in str(s).lower()
+
+
+        def format_string(s):
+            """
+            Formats a string according to a fixed pattern criteria.
+
+            Parameters
+            -------
+            s (any): To be formatted. If a string, will format. Otherwise, returns same.
+            
+            Returns
+            -------
+            (str): Formatted string.
+            """
+            PATTERN = r"_|\s+|-|:|/|\.|@"
+            if not isinstance(s, str):
+                return s
+            else:
+                return re.sub(PATTERN,"",s).lower()
+            
+
+        # Before we look through this dataframe with this processed list set,
+        # we also have to process the damn dataframe the SAME WAY or we will not find anything.
+        df_f = df0.applymap(format_string)
+
+        for search in search_list:
+            search = format_string(search) 
+            # Search for the string find_this in all columns. True-False DataFrame.
+            mask = df_f.applymap(lambda x: search_string(x, search))
+            filtered_df = df0.loc[mask.any(axis=1)]
+        return filtered_df
+    
+
+class Formatters():
+    """A class for formatting strings."""
+
+    def format_name(self, name: str) -> str:
+        """
+        Takes a name with potential special characters and extra spaces to return a properly-formatted name. 
+        Capitolizes first letters of place-value locations.
+
+        Parameters
+        -------
+        name (str): Name with potential special characters or spaces. 
+
+        Returns
+        -------
+        f_name (str): Formatted name.
+        """
+        remove_spaces = re.sub("^\s+|\s+$", "", name)
+
+        # Capitolize across special characters.
+        pattern = "(^|[^a-zA-Z0-9])([a-zA-Z0-9])"
+        f_name = re.sub(pattern, lambda x: x.group(1) + x.group(2).upper(),remove_spaces)
+        return f_name
+    

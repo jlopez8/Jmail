@@ -3,7 +3,10 @@
 
 import regex as re
 import requests 
+import pandas as pd
 import db_handler
+from tools import Searchers, Formatters
+
 
 
 class Clearbit():
@@ -60,7 +63,7 @@ class Clearbit():
 class PeopleDataLabs():
     """A class for working with People Data Labs API."""
 
-    def parse_details(self, response: requests.models.Response) -> tuple:
+    def parse_details(self, response: requests.models.Response) -> dict:
         """
         Parse response for HTTP request.
 
@@ -77,9 +80,9 @@ class PeopleDataLabs():
             return 
         response_json = response.json()
         data = response_json["data"]
-        first_name = self.format_name(data.get("first_name",""))
-        last_name = self.format_name(data.get("last_name",""))
-        company_name = self.format_name(data.get("job_company_name",""))
+        first_name = Formatters().format_name(data.get("first_name",""))
+        last_name = Formatters().format_name(data.get("last_name",""))
+        company_name = Formatters().format_name(data.get("job_company_name",""))
 
         details = {}
         details["first_name"] = first_name
@@ -106,31 +109,10 @@ class PeopleDataLabs():
         name = (None, None)
         response_json = response.json()
         data = response_json["data"]
-        first_name = self.format_name(data["first_name"])
-        last_name = self.format_name(data["last_name"])
+        first_name = Formatters().format_name(data["first_name"])
+        last_name = Formatters().format_name(data["last_name"])
         name = (first_name, last_name)
         return name
-    
-
-    def format_name(self, name: str) -> str:
-        """
-        Takes a name with potential special characters and extra spaces to return a properly-formatted name. 
-        Capitalizes first letters of place-value locations.
-
-        Parameters
-        -------
-        name (str): Name with potential special characters or spaces. 
-
-        Returns
-        -------
-        f_name (str): Formatted name.
-        """
-        remove_spaces = re.sub("^\s+|\s+$", "", name)
-
-        # Capitolize across special characters.
-        pattern = "(^|[^a-zA-Z0-9])([a-zA-Z0-9])"
-        f_name = re.sub(pattern, lambda x: x.group(1) + x.group(2).upper(),remove_spaces)
-        return f_name
     
 
     def get_names_from_email_list(self, email_list:[str], username=None, password=None, api_key=None):
@@ -192,6 +174,65 @@ class PeopleDataLabs():
             response = requests.get(url, params=params)
             try:
                 details[email] = self.parse_details(response)
+            except Exception as e:
+                msg = str(e) + f"\nName fetching failed for: {email}. Skipping this name."
+                db_handler.Timers().exec_time(msg)
+        return details
+
+
+class LocalPhoneBook():
+    """A class for managing a local phonebook repo."""
+
+    def parse_details(self, record: pd.DataFrame) -> dict:
+        """
+        Parse for a record as a DataFrame. Returns dictionary of details.
+
+        Parameters
+        -------
+        record (pd.DataFramee): DataFrame with one record of details.
+
+        Returns
+        -------
+        details (dict): Dict of parsed and formatted details.
+        """
+        if not isinstance(record, pd.DataFrame):
+            print("Record is not a Pandas DataFrame.")
+            return 
+
+        first_name = Formatters().format_name(record["FIRST_NAME"].tolist()[0])
+        last_name = Formatters().format_name(record["LAST_NAME"].tolist()[0])
+        company_name = Formatters().format_name(record["COMPANY"].tolist()[0])
+
+        details = {}
+        details["first_name"] = first_name
+        details["last_name"] = last_name
+        details["company_name"] = company_name
+        return details 
+
+
+    def get_details_from_email_list(self, email_list: [str], filepath:str) -> dict:
+        """
+        Get multiple details from a local csv.
+
+        Parameters
+        -------
+        email_list (list): List of emails to retrieve data for. 
+        filepath (str): Filepath to local phonebook csv.
+
+        Returns
+        -------
+        details (dict): Dictionary with email as key and details retrieved as values.
+        """
+        details = {}
+        df = pd.read_csv(filepath)
+
+        # Clean up the read-in data.
+        df.fillna("", inplace=True)
+
+        for email in email_list:
+            record = Searchers.search_df_rows(df, [email])
+            try:
+                details[email] = self.parse_details(record)
             except Exception as e:
                 msg = str(e) + f"\nName fetching failed for: {email}. Skipping this name."
                 db_handler.Timers().exec_time(msg)

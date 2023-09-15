@@ -39,7 +39,7 @@ pip-delete-this-directory.txt
 
 # dev_nbs
 *dev_nb.ipynb*
-
+*dev.py*
 
 # Unit test / coverage reports
 htmlcov/

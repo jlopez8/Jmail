@@ -3,6 +3,7 @@
 
 import os
 import argparse
+import shlex
 from pathlib import Path
 
 import datetime as dt
@@ -25,12 +26,21 @@ import phonebooks
 DB_CONFIG_PATH = "/Users/jaimemerizalde/Desktop/JOBS 2023/software/jmailer/db_config.yaml"
 
 def parse_args():
+    def convert_arg_line_to_args(arg_line):
+        for arg in shlex.split(arg_line):
+            if not arg.strip():
+                continue
+            yield arg
+
     parser = argparse.ArgumentParser(
-        prog="Insurance Providers Report.",
-        description="Post to insurance provider report.",
-        epilog="The insurance provider report.",
+        prog="db_handler.",
+        description="A package for handling database interactions.",
+        epilog="Thank you for using db_handler.",
         fromfile_prefix_chars="@",
     )
+
+    parser.convert_arg_line_to_args = convert_arg_line_to_args
+
     parser.add_argument(
         "-c", "--credentials_path", type=str,
         help="Credentials path."
@@ -40,12 +50,21 @@ def parse_args():
         help="Database key identifier. Possibly a name."
     )
     parser.add_argument(
-        "-t", "--table", type=str,
-        help="Table name."
+        "-dt", "--db_table", type=str,
+        help="Database table identifier."
     )
     parser.add_argument(
         "-r", "--recipients", type=str,
+        nargs="*",
         help="List of recipients."
+    )
+    parser.add_argument(
+        "-rp", "--recipients_path", type=str,
+        help="Path to a receipients file (csv)."
+    )
+    parser.add_argument(
+        "--local_phonebook_path", type=str,
+        help="Path to local phonebook csv."
     )
     args = parser.parse_args()
     return args
@@ -184,6 +203,22 @@ class DB_handler():
         return merge_columns, fixed_columns, update_columns, sort_by
     
 
+    def get_recipients_from_path(self, filepath: str) -> list:
+        """
+        Get list using a path to a csv.
+
+        Parameters
+        -------
+        filepath (str): Filepath to csv. 
+
+        Returns
+        -------
+        ([str]): List of values.
+        """
+        recipients = pd.read_csv(filepath, header=None)
+        return recipients[0].values.tolist()
+    
+
     def cross_check_emails(self, recipients: list, gsheets: pygsheets.client.Client, db_identifier: str, db_table: str) -> (list, list):
         """
         Takes a list of emails and returns those that do not already exist in the (gsheet) database.
@@ -227,9 +262,9 @@ class DB_handler():
 
         Returns
         -------
-        df (dict): Dataframe of collection of respones.
+        response_df (dict): Dataframe of collection of respones.
         """
-        df = None
+        response_df = None
         json_data = {}
         for key, detail in data.items():
             try: 
@@ -240,7 +275,7 @@ class DB_handler():
                     "EMAIL": key,
                     "COMPANY": detail.get("company_name", ""),
                     "LAST_OUTREACH":  dt.datetime.today().strftime("%Y-%m-%d"),
-                    "FIRST_OUTREACH": dt.datetime.today().strftime("Y-%m-%d"),
+                    "FIRST_OUTREACH": dt.datetime.today().strftime("%Y-%m-%d"),
                 }
             except Exception as e:
                 msg = f"No response recorded for {key}. " + str(e)
@@ -249,7 +284,7 @@ class DB_handler():
         if len(json_data) > 0:
             response_df = pd.DataFrame.from_dict(json_data, orient="index")
             response_df.reset_index(drop=True, inplace=True)
-        return df
+        return response_df
 
 
     def clean_df(self, df, drop_columns, pattern, permuted_columns=None) -> pd.DataFrame:
@@ -378,6 +413,7 @@ class DB_handler():
         original_df = wks.get_as_df()
 
         new_data = self.details_to_df(details)
+
         if not new_data is None:
             updated_data = self.update_dataframe_conditionally(new_data, original_df, merge_columns, fixed_columns, update_columns, sort_by=sort_by, ascending=False,)
             google.write_to_googlesheets(updated_data, db_identifier, gsheets, table, row_start="A1")
@@ -388,38 +424,40 @@ class DB_handler():
 
 
 def main():
-    input = parse_args()
-    api_key = input.api_key
-    credentials_path = input.credentials_path
-    db_identifier = input.db_identifier
-    table_identifier = input.table_identifier
-    recipients = input.recipients
-    
+    inputs = parse_args()
+    credentials_path = inputs.credentials_path
+    db_identifier = inputs.db_identifier
+    db_table = inputs.db_table
+    recipients = inputs.recipients
+    recipients_path = inputs.recipients_path
+    local_phonebook_path = inputs.local_phonebook_path
+
+    msg = "Parsed args flow complete."
+    Timers().exec_time(msg)
+
+    msg = "Fetching phonebook."
+    Timers().exec_time(msg)
+    # phonebook = phonebooks.PeopleDataLabs()
+    phonebook = phonebooks.LocalPhoneBook()
+
+    if not (recipients_path is None) and (recipients is None):
+        recipients = DB_handler().get_recipients_from_path(recipients_path)
+    msg = "Get recipients flow complete."
+    Timers().exec_time(msg)
+
+    details = phonebook.get_details_from_email_list(recipients, local_phonebook_path)
 
     msg = "Updating database."
     Timers().exec_time(msg)
-
-    phonebook = phonebooks.PeopleDataLabs()
-    details = phonebook.get_details_from_email_list(recipients, api_key=api_key)
-
     DB_handler().db_contacts_updater(
         credentials_path,
-        api_key,
         db_identifier,
-        table_identifier,
+        db_table,
         details
     )
-
-    msg = "Updating database."
-    Timers().exec_time(msg)
-    DB_handler().db_contacts_updater(
-        credentials_path,
-        api_key,
-        db_identifier,
-        table_identifier,
-        recipients
-    )
+    return
 
     
 if __name__ == "__main__":
-    Timers().exec_time(f"")
+    main()
+    Timers().exec_time(f"Completed db_handler run.")

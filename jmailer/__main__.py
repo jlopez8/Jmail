@@ -2,8 +2,8 @@
 # gmailer main.py
 
 import os
-
 import argparse
+import shlex
 import datetime as dt
 import regex as re
 
@@ -22,16 +22,27 @@ import pandas as pd
 import db_handler
 from phonebooks import Clearbit as cb
 from phonebooks import PeopleDataLabs as pdl
+from phonebooks import LocalPhoneBook as lpb
 from tools import Timers, text_builder
 
 
 def parse_args():
+
+    def convert_arg_line_to_args(arg_line):
+        for arg in shlex.split(arg_line):
+            if not arg.strip():
+                continue
+            yield arg
+
     parser = argparse.ArgumentParser(
         prog="Jmail",
         description="Super-charged Gmail.",
         epilog="Thank you for using Jmail.",
         fromfile_prefix_chars="@",
     )
+    
+    parser.convert_arg_line_to_args = convert_arg_line_to_args
+
     parser.add_argument(
         "-cfg", "--config_path", type=str,
         help="Configuration path."
@@ -49,8 +60,8 @@ def parse_args():
         help="Email sender."
     )
     parser.add_argument(
-        "-to", "--recipients", type=str,
-        nargs="+",
+        "-to", "--recipients", type=str, action="append",
+        nargs="*",
         help="Email recipients."
     )
     parser.add_argument(
@@ -81,6 +92,10 @@ def parse_args():
     parser.add_argument(
         "-cp", "--credentials_path", type=str,
         help="Path to credentials file."
+    )
+    parser.add_argument(
+        "--local_phonebook_path", type=str,
+        help="Path to local phonebook csv."
     )
     parser.add_argument(
         "-t", "--test_mode", action="store_true",
@@ -197,7 +212,15 @@ def message_previewer(body: str) -> str:
     return filepath
 
 
-def send_email(sender: str, recipients: list, smpt_connection, subject="", body="", attachments=None, test_mode=True):
+def send_email(
+        sender: str, 
+        recipients: list, 
+        smpt_connection, 
+        subject="", 
+        body="", 
+        attachments=None, 
+        test_mode=True
+    ):
     """
     Send an email via SMTP. Recommended body is provided as HTML formatted text.
 
@@ -233,7 +256,15 @@ def send_email(sender: str, recipients: list, smpt_connection, subject="", body=
     return email
 
 
-def send_emails(sender: str, recipients: list, smpt_connection, bodies={}, subject=None, attachments=None, test_mode=True):
+def send_emails(
+        sender: str, 
+        recipients: list, 
+        smpt_connection, 
+        bodies={}, 
+        subject=None, 
+        attachments=None, 
+        test_mode=True
+    ):
     """
     Sends emails with different bodies (can be).
     
@@ -274,6 +305,7 @@ def jmailer():
     body = inputs.body
     body_path = inputs.body_path
     attachments_path = inputs.attachments_path
+    local_phonebook_path = inputs.local_phonebook_path
     test_mode = inputs.test_mode
 
     if body != None and (body_path != None or email_config_path != None):
@@ -292,8 +324,10 @@ def jmailer():
     gmail_password = credentials["gmail"]["app_password"]
     print("Get passwords flow complete.")
 
-    recipients = get_recipients_from_path(recipients_path)
-    print("Get recipients flow complete.")
+    if not (recipients_path is None) and (recipients is None):
+        recipients = db_handler.DB_handler().get_recipients_from_path(recipients_path)
+    Timers().exec_time("Get recipients flow complete.")
+
 
     if email_config_path != None:
         email_config = yaml.safe_load(open(email_config_path))
@@ -313,9 +347,10 @@ def jmailer():
     msg = "Clearbit connect reached quota. Trying People Data Labs instead."
     Timers().exec_time(msg)
     # NOTE; this should really be a try statement.
-    phonebook = pdl()
+    phonebook = lpb()
     # names = cb().get_names_from_email_list(recipients, username=clearbit_api_key)
-    recipient_details = phonebook.get_details_from_email_list(recipients, api_key=api_key)
+    # recipient_details = phonebook.get_details_from_email_list(recipients, api_key=api_key)
+    recipient_details = phonebook.get_details_from_email_list(recipients, local_phonebook_path)
     print("Recipient details fetching complete.")
 
     ### Start the Meat of the Message.
@@ -369,7 +404,7 @@ def jmailer():
         msg = "Database not updated."
         Timers().exec_time(msg)
     
-    # Cleanup
+    # Cleanup.
     os.remove(temp_filepath)
     return
 
