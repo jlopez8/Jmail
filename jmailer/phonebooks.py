@@ -189,7 +189,7 @@ class LocalPhoneBook():
 
         Parameters
         -------
-        response (requests.models.Response): Http response with person data.
+        record (pd.DataFramee): DataFrame with one record of details.
 
         Returns
         -------
@@ -225,6 +225,9 @@ class LocalPhoneBook():
         """
         details = {}
         df = pd.read_csv(filepath)
+
+        # Clean up the read-in data.
+        df.fillna("", inplace=True)
 
         for email in email_list:
             record = Searchers.search_df_rows(df, [email])

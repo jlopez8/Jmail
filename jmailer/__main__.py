@@ -2,8 +2,8 @@
 # gmailer main.py
 
 import os
-
 import argparse
+import shlex
 import datetime as dt
 import regex as re
 
@@ -27,12 +27,22 @@ from tools import Timers, text_builder
 
 
 def parse_args():
+
+    def convert_arg_line_to_args(arg_line):
+        for arg in shlex.split(arg_line):
+            if not arg.strip():
+                continue
+            yield arg
+
     parser = argparse.ArgumentParser(
         prog="Jmail",
         description="Super-charged Gmail.",
         epilog="Thank you for using Jmail.",
         fromfile_prefix_chars="@",
     )
+    
+    parser.convert_arg_line_to_args = convert_arg_line_to_args
+
     parser.add_argument(
         "-cfg", "--config_path", type=str,
         help="Configuration path."
@@ -51,7 +61,7 @@ def parse_args():
     )
     parser.add_argument(
         "-to", "--recipients", type=str, action="append",
-        nargs="+",
+        nargs="*",
         help="Email recipients."
     )
     parser.add_argument(
@@ -202,7 +212,15 @@ def message_previewer(body: str) -> str:
     return filepath
 
 
-def send_email(sender: str, recipients: list, smpt_connection, subject="", body="", attachments=None, test_mode=True):
+def send_email(
+        sender: str, 
+        recipients: list, 
+        smpt_connection, 
+        subject="", 
+        body="", 
+        attachments=None, 
+        test_mode=True
+    ):
     """
     Send an email via SMTP. Recommended body is provided as HTML formatted text.
 
@@ -238,7 +256,15 @@ def send_email(sender: str, recipients: list, smpt_connection, subject="", body=
     return email
 
 
-def send_emails(sender: str, recipients: list, smpt_connection, bodies={}, subject=None, attachments=None, test_mode=True):
+def send_emails(
+        sender: str, 
+        recipients: list, 
+        smpt_connection, 
+        bodies={}, 
+        subject=None, 
+        attachments=None, 
+        test_mode=True
+    ):
     """
     Sends emails with different bodies (can be).
     
@@ -298,8 +324,10 @@ def jmailer():
     gmail_password = credentials["gmail"]["app_password"]
     print("Get passwords flow complete.")
 
-    recipients = get_recipients_from_path(recipients_path)
-    print("Get recipients flow complete.")
+    if not (recipients_path is None) and (recipients is None):
+        recipients = db_handler.DB_handler().get_recipients_from_path(recipients_path)
+    Timers().exec_time("Get recipients flow complete.")
+
 
     if email_config_path != None:
         email_config = yaml.safe_load(open(email_config_path))

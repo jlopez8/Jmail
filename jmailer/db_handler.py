@@ -59,6 +59,10 @@ def parse_args():
         help="List of recipients."
     )
     parser.add_argument(
+        "-rp", "--recipients_path", type=str,
+        help="Path to a receipients file (csv)."
+    )
+    parser.add_argument(
         "--local_phonebook_path", type=str,
         help="Path to local phonebook csv."
     )
@@ -197,6 +201,22 @@ class DB_handler():
         update_columns = db_configs["column_configs"]["update_columns"]
         sort_by = db_configs["column_configs"].get("sort_by", None)
         return merge_columns, fixed_columns, update_columns, sort_by
+    
+
+    def get_recipients_from_path(self, filepath: str) -> list:
+        """
+        Get list using a path to a csv.
+
+        Parameters
+        -------
+        filepath (str): Filepath to csv. 
+
+        Returns
+        -------
+        ([str]): List of values.
+        """
+        recipients = pd.read_csv(filepath, header=None)
+        return recipients[0].values.tolist()
     
 
     def cross_check_emails(self, recipients: list, gsheets: pygsheets.client.Client, db_identifier: str, db_table: str) -> (list, list):
@@ -404,12 +424,13 @@ class DB_handler():
 
 
 def main():
-    input = parse_args()
-    credentials_path = input.credentials_path
-    db_identifier = input.db_identifier
-    db_table = input.db_table
-    recipients = input.recipients
-    local_phonebook_path = input.local_phonebook_path
+    inputs = parse_args()
+    credentials_path = inputs.credentials_path
+    db_identifier = inputs.db_identifier
+    db_table = inputs.db_table
+    recipients = inputs.recipients
+    recipients_path = inputs.recipients_path
+    local_phonebook_path = inputs.local_phonebook_path
 
     msg = "Parsed args flow complete."
     Timers().exec_time(msg)
@@ -418,6 +439,11 @@ def main():
     Timers().exec_time(msg)
     # phonebook = phonebooks.PeopleDataLabs()
     phonebook = phonebooks.LocalPhoneBook()
+
+    if not (recipients_path is None) and (recipients is None):
+        recipients = DB_handler().get_recipients_from_path(recipients_path)
+    msg = "Get recipients flow complete."
+    Timers().exec_time(msg)
 
     details = phonebook.get_details_from_email_list(recipients, local_phonebook_path)
 

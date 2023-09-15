@@ -69,7 +69,7 @@ class Searchers():
     """A class for finding things."""
     import pandas as pd
 
-    def search_df_rows(df: pd.DataFrame, search_list: list) -> dict:
+    def search_df_rows(df: pd.DataFrame, search_list: list) -> pd.DataFrame:
         """
         Find the rows matching values in a search list.
 
@@ -80,7 +80,7 @@ class Searchers():
 
         Returns
         -------
-        filtered_df ({}}): Search dictionary with row(s) in original Data Frame matching the results.
+        filtered_df (pd.DataFrame): A DataFrame with row(s) in original Data Frame matching the results.
         """
         df0 = df.copy(deep=True)
 
