@@ -1,0 +1,2 @@
+print("WARNING: changed source code to pass bbox the 'region' kwarg. Newer PIL packages may not correctly implement the 'region' kwarg.")
+Basically, we have this region kwarg not being passed to Imgrab option near 522  at code: 'im = ImageGrab.grab(bbox=region)'

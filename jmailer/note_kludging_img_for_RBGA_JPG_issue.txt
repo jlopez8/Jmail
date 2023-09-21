@@ -1,0 +1,17 @@
+from PIL import Image
+
+with Image.open("/Users/jaimemerizalde/Desktop/Captura de pantalla 2023-08-29 a la(s) 12.34.23 p.m..png") as im:
+
+    print(im.mode)
+    # if im.mode == "RGBA":
+    #     rgb_im = im.convert('RGB')
+    # else:
+    rgb_im = im.convert('RGBA')
+
+    # ⛔️ OSError: cannot write mode RGBA as JPEG
+    rgb_im.save('my_saved_image.jpg')
+
+This is in PIL/Image.py
+        print("WARNING: Kludging image_format forcing JPEG to PNG type.")
+        if image_format == "JPEG":
+            image_format = "PNG"	
