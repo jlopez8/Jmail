@@ -155,3 +155,82 @@ class Formatters():
         f_name = re.sub(pattern, lambda x: x.group(1) + x.group(2).upper(),remove_spaces)
         return f_name
     
+
+class ScreenShots():
+    """A class for handling screen shots."""
+
+    import os
+    from AppKit import NSScreen
+    import pyautogui
+
+    def __init__(self, height=None, width=None):
+        """
+        Constructor to initialize a screenshot grab with the default screen size. 
+        Provided values are cast as integers. 
+        Defines the image grab options.
+
+        Parameters
+        -------
+        height (float): Float of screen height.
+        width (float): Float of screen width.
+
+        Returns
+        -------
+        (none)
+        """
+        self.screen = self.NSScreen.mainScreen().frame()
+        if height is None:
+            self.screen_height = int(self.screen.size.height) 
+        else:
+            self.screen_height = int(height)
+        
+        if width is None:
+            self.screen_width = int(self.screen.size.width)
+        else:
+            self.screen_width = int(width)
+
+        # Define the screen crop and grab options. Tuple order is: (left, top, right, bottom).
+        self.image_grab_options = {
+            "WHOLE": (0, 0, self.screen_width, self.screen_height),
+            "TOP_HALF": (0, 0, self.screen_width, int(self.screen_height/2)),
+            "RIGHT_HALF": (int(self.screen_width/2), 0, self.screen_width, self.screen_height),
+            "BOTTOM_HALF": (0, int(self.screen_height/2), self.screen_width, self.screen_height),
+            "LEFT_HALF": (0, 0, int(self.screen_width/2), self.screen_height),
+            "TOP_LEFT_QUADRANT": (0, 0, int(self.screen_width/2), int(self.screen_height/2)),
+            "TOP_RIGHT_QUADRANT": (int(self.screen_width/2), 0, self.screen_width, int(self.screen_height/2)),
+            "BOTTOM_RIGHT_QUADRANT": (int(self.screen_width/2), int(self.screen_height/2), self.screen_width, self.screen_height),
+            "BOTTOM_LEFT_QUADRANT": (0, int(self.screen_height/2), int(self.screen_width/2), self.screen_height),
+            "CUSTOM": None,
+        }
+        return
+    
+
+    def snapshot(self, image_grap_opt="WHOLE", save_name=None, region=None):
+        """
+        Take a screenshot. Optionally save it with the given name. Can specify what regions of the screen to snapshot.
+        Backed by pyautogui and PIL. Assume save_name has the extension attached.
+
+        Parameters
+        -------
+        image_grap_opt (str): Image option to choose: WHOLE, TOP_HALF, RIGHT_HALF, BOTTOM_HALF, LEFT_HALF, TOP_LEFT_QUADRANT, TOP_RIGHT_QUADRANT, BOTTOM_RIGHT_QUADRANT, BOTTOM_LEFT_QUADRANT or CUSTOM.
+        save_name (str): Filepath to save captured image as.
+        region (tup): Tuple of region to capture: (left, top, right, bottom).
+
+        Returns
+        -------
+        image (PIL.Image.Image): PIL image object of screen capture.
+        """
+        image_region = self.image_grab_options[image_grap_opt]
+
+        if image_grap_opt == "CUSTOM":
+            image_region = region
+
+        image = self.pyautogui.screenshot(region=image_region)
+
+        if not save_name is None:
+            filename, file_extension = self.os.path.splitext(save_name)
+            print("WARNING: All images currently converted to '.png'.")
+            image.save(filename + ".png")
+
+        return image
+    
