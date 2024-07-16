@@ -1,5 +1,5 @@
 # Author: Dr. Jaime Alexis Lopez-Merizalde
-# gmailer main.py
+# jmailer main.py
 
 import os
 import argparse
@@ -36,7 +36,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(
         prog="Jmail",
-        description="Super-charged Gmail.",
+        description="A super-charged Gmail access.",
         epilog="Thank you for using Jmail.",
         fromfile_prefix_chars="@",
     )
