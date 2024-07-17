@@ -127,6 +127,27 @@ def build_message(
     return msg
 
 
+def preview_message(msg: EmailMessage) -> str:
+    """
+    Allows preview message with a browser. Uses tempfile file management to create a 
+    tempfile for explicit deletion.
+
+    Parameters
+    -------
+    msg (EmailMessage): EmailMessage object.
+
+    Returns
+    -------
+    f.name (str): Filepath temporary for message previewer.
+    """
+    body = ''.join(msg.get_body(preferencelist=('plain', 'html')).get_content().splitlines(keepends=True))
+    with tempfile.NamedTemporaryFile("w", delete=False, suffix=".html") as f:
+        url = "file://" + f.name
+        f.write(body)
+    webbrowser.open_new_tab(url)
+    return f.name
+
+
 def jmailer():
     """Jmailer method."""
 
@@ -155,6 +176,16 @@ def jmailer():
     print("Message build flow...")
     msg = build_message(sender, recipients, subject, body, attachments_path)
     print("Message build flow complete.")
+
+    print("Message preview flow...")
+    # Note: message preview flow requires temp file cleanup.
+    confirm_preview = input(f"Do you want to preview the message? (y - to confirm)")
+    if confirm_preview == "y" or None:
+        temp_filepath = preview_message(msg)
+    else:
+        temp_filepath = None
+    print("Message preview flow complete.")
+
 
 if __name__=="__main__":
 
