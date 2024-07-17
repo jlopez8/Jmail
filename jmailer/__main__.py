@@ -50,18 +50,40 @@ def parse_args():
     # See documentation for arg definitions.
     parser.add_argument(
         "-cfg", "--config_path", type=str,
-        help="Configuration path."
+        help="""
+        Path to configuration `.yaml` file. 
+        Hosts key information like app word and other 
+        sensitive information required to access sensitive 
+        resources. This file is located in the top-level 
+        directorywhere Jmail is installed.
+        """
     )
     parser.add_argument(
         "-s", "--sender", type=str,
-        help="Email sender."
+        help="Email address of sender."
     )
     parser.add_argument(
         "-to", "--recipients", type=str, action="append",
         nargs="*",
-        help="Email recipients."
+        help="""
+        Comma-separated emails of recipients. 
+        Single-recipients do not need a comma.
+        """
     )
-
+    parser.add_argument(
+        "-sub", "--subject", type=str,
+        help="Email subject."
+    )
+    parser.add_argument(
+        "-b", "--body", type=str,
+        help="Email body as string."
+    )
+    parser.add_argument(
+        "-a", "--attachments_path", type=str,
+        nargs='*',
+        help="Path(s) to 0 or more attachment(s)."
+    )
+    
 
 def jmailer():
     """Jmailer method."""
