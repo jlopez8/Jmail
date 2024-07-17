@@ -90,7 +90,7 @@ def parse_args():
 
 def build_message(
         sender: str, recipients: list, subject: str, 
-        body: str, attachments_path=""
+        body: str, attachments_path=None
     ) -> EmailMessage:
     """
     Build an email message using the relevant email parameters defined in arguments. 
@@ -101,7 +101,7 @@ def build_message(
     recipients ([str]): List of recipients. 
     subject (str): Optional. Email subject line.
     body (str): Optional. Body of message.
-    attachments_path (str): Optional. Filepath to attachments.
+    attachments_path ([str]): Optional. List of filepath to attachments.
 
     Returns
     -------
@@ -114,15 +114,15 @@ def build_message(
     msg.set_content(body, subtype="html")
 
     # attachments
-    filepath = attachments_path
-    with open(filepath, "rb") as fp:
-        data = fp.read()
-    # guess encoding
-    ctype, enconding = mimetypes.guess_type(filepath)
-    if ctype is None or enconding is not None:
-        ctype = "application/octet-stream"
-    maintype, subtype = ctype.split("/", 1)
-    msg.add_attachment(data, maintype=maintype, subtype=subtype)
+    if attachments_path != None:
+        with open(attachments_path[0], "rb") as fp:
+            data = fp.read()
+        # guess encoding
+        ctype, enconding = mimetypes.guess_type(attachments_path[0])
+        if ctype is None or enconding is not None:
+            ctype = "application/octet-stream"
+        maintype, subtype = ctype.split("/", 1)
+        msg.add_attachment(data, maintype=maintype, subtype=subtype)
 
     return msg
 
