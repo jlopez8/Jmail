@@ -186,6 +186,16 @@ def jmailer():
         temp_filepath = None
     print("Message preview flow complete.")
 
+    print("Message send flow...")
+    confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
+    if confirm_send=="y":
+        for recipient in recipients:
+            smpt_connection.send_message(msg, from_addr=sender, to_addrs=recipient)
+        print("Message sent!")
+    else: 
+        print("Message not sent!")
+    print("Message send flow complete.")
+
 
 if __name__=="__main__":
 
