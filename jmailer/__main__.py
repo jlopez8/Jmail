@@ -88,6 +88,45 @@ def parse_args():
     return args
 
 
+def build_message(
+        sender: str, recipients: list, subject: str, 
+        body: str, attachments_path=""
+    ) -> EmailMessage:
+    """
+    Build an email message using the relevant email parameters defined in arguments. 
+
+    Parameters
+    -------
+    sender (str): Sender as a string.
+    recipients ([str]): List of recipients. 
+    subject (str): Optional. Email subject line.
+    body (str): Optional. Body of message.
+    attachments_path (str): Optional. Filepath to attachments.
+
+    Returns
+    -------
+    msg (EmailMessage): EmailMessage object defined with prescribed arguments.
+    """
+    msg = EmailMessage()
+    msg["Subject"] = subject 
+    msg["From"] = sender
+    msg["To"] = recipients # there may need to be some parsing done here for multiple senders. have to define the contracts.
+    msg.set_content(body, subtype="html")
+
+    # attachments
+    filepath = attachments_path
+    with open(filepath, "rb") as fp:
+        data = fp.read()
+    # guess encoding
+    ctype, enconding = mimetypes.guess_type(filepath)
+    if ctype is None or enconding is not None:
+        ctype = "application/octet-stream"
+    maintype, subtype = ctype.split("/", 1)
+    msg.add_attachment(data, maintype=maintype, subtype=subtype)
+
+    return msg
+
+
 def jmailer():
     """Jmailer method."""
 
