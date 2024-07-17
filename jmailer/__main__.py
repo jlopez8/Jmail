@@ -196,6 +196,11 @@ def jmailer():
         print("Message not sent!")
     print("Message send flow complete.")
 
+    print("Cleanup flow...")
+    if temp_filepath:
+        os.remove(temp_filepath)
+    print("Cleanup flow complete.")
+
 
 if __name__=="__main__":
 
