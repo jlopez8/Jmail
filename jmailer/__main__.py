@@ -8,6 +8,7 @@ import shlex
 import yaml
 
 import smtplib
+import ssl
 import mimetypes
 from email.message import EmailMessage
 from email.mime.image import MIMEImage
@@ -83,17 +84,41 @@ def parse_args():
         nargs='*',
         help="Path(s) to 0 or more attachment(s)."
     )
-    
+    args = parser.parse_args()
+    return args
+
 
 def jmailer():
     """Jmailer method."""
 
+    print("Input args flow...")
     inputs = parse_args()
+    config_path = inputs.config_path
+    sender = inputs.sender
+    recipients = inputs.recipients
+    subject = inputs.subject
+    body = inputs.body
+    attachments_path = inputs.attachments_path
+    print("Input args flow complete.")
 
+    print("Loading credentials flow...")
+    config = yaml.safe_load(open(config_path))
+    credentials = config["credentials"]
+    app_password = credentials["gmail"]["app_password"]
+    print("Loading credentials flow complete.")
+
+    print("Connecting to SMPT Gmail flow...")
+    context = ssl.create_default_context()
+    smpt_connection = smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) 
+    smpt_connection.login(sender, app_password)
+    print("Connecting to SMPT Gmail flow complete.")
+
+    print("Message build flow...")
+    msg = build_message(sender, recipients, subject, body, attachments_path)
+    print("Message build flow complete.")
 
 if __name__=="__main__":
 
     jmailer()
     # delete me
     print("run main successful")
-
