@@ -64,7 +64,7 @@ def parse_args():
         help="Email address of sender."
     )
     parser.add_argument(
-        "-to", "--recipients", type=str, action="append",
+        "-to", "--recipients", type=str,
         nargs="*",
         help="""
         Comma-separated emails of recipients. 
@@ -89,7 +89,7 @@ def parse_args():
 
 
 def build_message(
-        sender: str, recipients: list, subject: str, 
+        sender: str, recipient: list, subject: str, 
         body: str, attachments_path=None
     ) -> EmailMessage:
     """
@@ -98,9 +98,9 @@ def build_message(
     Parameters
     -------
     sender (str): Sender as a string.
-    recipients ([str]): List of recipients. 
+    recipient (str): Recipient. 
     subject (str): Optional. Email subject line.
-    body (str): Optional. Body of message.
+    body (str): Body of message.
     attachments_path ([str]): Optional. List of filepath to attachments.
 
     Returns
@@ -110,7 +110,8 @@ def build_message(
     msg = EmailMessage()
     msg["Subject"] = subject 
     msg["From"] = sender
-    msg["To"] = recipients # there may need to be some parsing done here for multiple senders. have to define the contracts.
+    msg["To"] = recipient
+    # body
     msg.set_content(body, subtype="html")
 
     # attachments
@@ -167,20 +168,17 @@ def jmailer():
     app_password = credentials["gmail"]["app_password"]
     print("Loading credentials flow complete.")
 
-    print("Connecting to SMPT Gmail flow...")
+    print("Connecting to SMTP Gmail flow...")
     context = ssl.create_default_context()
-    smpt_connection = smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) 
-    smpt_connection.login(sender, app_password)
-    print("Connecting to SMPT Gmail flow complete.")
-
-    print("Message build flow...")
-    msg = build_message(sender, recipients, subject, body, attachments_path)
-    print("Message build flow complete.")
+    smtp_connection = smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) 
+    smtp_connection.login(sender, app_password)
+    print("Connecting to SMTP Gmail flow complete.")
 
     print("Message preview flow...")
     # Note: message preview flow requires temp file cleanup.
-    confirm_preview = input(f"Do you want to preview the message? (y - to confirm)")
+    confirm_preview = input(f"Do you want to preview the first message? (y - to confirm)")
     if confirm_preview == "y" or None:
+        msg = build_message(sender, recipients[0], subject, body, attachments_path)
         temp_filepath = preview_message(msg)
     else:
         temp_filepath = None
@@ -190,7 +188,8 @@ def jmailer():
     confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
     if confirm_send=="y":
         for recipient in recipients:
-            smpt_connection.send_message(msg, from_addr=sender, to_addrs=recipient)
+            msg = build_message(sender, recipient, subject, body, attachments_path)
+            smtp_connection.send_message(msg, from_addr=sender, to_addrs=recipient)
         print("Message sent!")
     else: 
         print("Message not sent!")
