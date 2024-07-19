@@ -50,7 +50,7 @@ def parse_args():
 
     # See documentation for arg definitions.
     parser.add_argument(
-        "-cfg", "--config_path", type=str,
+        "-c", "--config_path", type=str,
         help="""
         Path to configuration `.yaml` file. 
         Hosts key information like app word and other 
@@ -83,6 +83,13 @@ def parse_args():
         "-a", "--attachments_path", type=str,
         nargs='*',
         help="Path(s) to 0 or more attachment(s)."
+    )
+    parser.add_argument(
+        "-r", "--runme", type=str,
+        help="""
+        Path of runme file with arguments. If specified, this will 
+        override any arguments provided on the CLI.
+        """
     )
     args = parser.parse_args()
     return args
@@ -149,6 +156,32 @@ def preview_message(msg: EmailMessage) -> str:
     return f.name
 
 
+def parse_runme(runme: dict) -> dict:
+    """Parses a runme file into it's individual usable components.
+
+    Parameters
+    -------
+    runme (dict): Filepath for runme file provided.
+
+    Returns
+    -------
+    config_path (str): Path to configuration `.yaml` file.
+    sender (str): Email address of sender. 
+    recipients (list): List of recipients. If single recipient, this is a list of one string.
+    subject (str): Email subject.
+    body (str): Email body.
+    attachments_path (str): Path to attachment to be included in email.
+    """
+    args = runme["arguments"]
+    config_path = args.get("config_path", None)
+    sender = args.get("sender", None)
+    recipients = args.get("recipients", None)
+    subject = args.get("subject", None)
+    body = args.get("body", None)
+    attachments_path = args.get("attachments_path", None)
+    return config_path, sender, recipients, subject, body, attachments_path
+
+
 def jmailer():
     """Jmailer method."""
 
@@ -160,7 +193,15 @@ def jmailer():
     subject = inputs.subject
     body = inputs.body
     attachments_path = inputs.attachments_path
+    runme_path = inputs.runme
     print("Input args flow complete.")
+
+    if runme_path != None:
+        print("Loading runme file flow...")
+        print("Warning: runme arguments override CLI arguments.")
+        runme = yaml.safe_load(open(runme_path))
+        config_path, sender, recipients, subject, body, attachments_path = parse_runme(runme)
+        print("Loading runme file flow complete.")
 
     print("Loading credentials flow...")
     config = yaml.safe_load(open(config_path))
