@@ -1,0 +1,12 @@
+---
+arguments:
+  config_path: config.yaml
+  sender: "you@email.com"
+  recipients: 
+    - "a@email.com"
+    - "b@email.com"
+  subject: "fun new email!"
+  body: | # | will span more than one one and parse line breaks > will do the same but not interpret line breaks
+    this is my fune new message!
+  attachment_path: fun_new_attachment.png
+
