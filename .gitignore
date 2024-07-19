@@ -136,7 +136,11 @@ dmypy.json
 app_keys.py
 *config.yaml*
 
+
 # secrets
 *secrets*
 *jmailer_secrets.json*
 *token.pickle*
+
+# runme yaml
+"*runme.yaml*"
