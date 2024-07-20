@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <div style="padding:20px 0px">
+            <div style="text-align:left;">
+                <p>
+                Dear {addressee},
+                </p>
+
+                <p>
+                My name is {my_first} {my_last}. Here's a fun new email from me.
+                </p>
+
+                <p>
+                Sincerely, <br>
+                {me}
+                </p>
+
+            </div>
+        </div>
+    </body>
+</html>
+

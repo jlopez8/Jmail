@@ -142,5 +142,6 @@ app_keys.py
 *jmailer_secrets.json*
 *token.pickle*
 
-# runme yaml
-"*runme.yaml*"
+# input_files
+runme.yaml
+*bodies/*
