@@ -17,6 +17,8 @@ from email.mime.multipart import MIMEMultipart
 import tempfile
 import webbrowser
 
+from tools import text_builder
+
 
 def parse_args():
     def convert_arg_line_to_args(arg_line):
@@ -80,6 +82,10 @@ def parse_args():
         help="Email body as string."
     )
     parser.add_argument(
+        "-bp", "--body_path", type=str,
+        help="Path to body text or html-formatted file. If body path provided, it will overwrite body provided."
+    )
+    parser.add_argument(
         "-a", "--attachments_path", type=str,
         nargs='*',
         help="Path(s) to 0 or more attachment(s)."
@@ -93,6 +99,31 @@ def parse_args():
     )
     args = parser.parse_args()
     return args
+
+
+def build_body(
+        body_path: str,
+        text_vars=None,
+) -> str:
+    """
+    Build a body text using a body path. The body path points to a plain text or HTML-formatted message.
+    When building a body, variables can be provided as a dictionary to parameterize the given body text.
+
+    Parameters
+    -------
+    body_path (str): Path to body file as a plain text or HTML-formatted file.
+    text_vars (dict): Dictionary of variables. Optional.
+
+    Returns
+    -------
+    body (str): Message body formatted as string. 
+    """
+    body = None
+    with open(body_path, "r+") as f:
+        body = f.read() 
+    f.close()
+    body = text_builder(body, text_vars)
+    return body
 
 
 def build_message(
@@ -178,8 +209,9 @@ def parse_runme(runme: dict) -> dict:
     recipients = args.get("recipients", None)
     subject = args.get("subject", None)
     body = args.get("body", None)
+    body_path = args.get("body_path", None)
     attachments_path = args.get("attachments_path", None)
-    return config_path, sender, recipients, subject, body, attachments_path
+    return config_path, sender, recipients, subject, body, body_path, attachments_path
 
 
 def jmailer():
@@ -192,6 +224,7 @@ def jmailer():
     recipients = inputs.recipients
     subject = inputs.subject
     body = inputs.body
+    body_path = inputs.body_path
     attachments_path = inputs.attachments_path
     runme_path = inputs.runme
     print("Input args flow complete.")
@@ -200,7 +233,7 @@ def jmailer():
         print("Loading runme file flow...")
         print("Warning: runme arguments override CLI arguments.")
         runme = yaml.safe_load(open(runme_path))
-        config_path, sender, recipients, subject, body, attachments_path = parse_runme(runme)
+        config_path, sender, recipients, subject, body, body_path, attachments_path = parse_runme(runme)
         print("Loading runme file flow complete.")
 
     print("Loading credentials flow...")
@@ -219,6 +252,8 @@ def jmailer():
     # Note: message preview flow requires temp file cleanup.
     confirm_preview = input(f"Do you want to preview the first message? (y - to confirm)")
     if confirm_preview == "y" or None:
+        if body_path != None:
+            body = build_body(body_path)
         msg = build_message(sender, recipients[0], subject, body, attachments_path)
         temp_filepath = preview_message(msg)
     else:
@@ -229,9 +264,12 @@ def jmailer():
     confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
     if confirm_send=="y":
         for recipient in recipients:
+            if body_path != None:
+                text_vars = None
+                body = build_body(body_path, text_vars=text_vars)
             msg = build_message(sender, recipient, subject, body, attachments_path)
             smtp_connection.send_message(msg, from_addr=sender, to_addrs=recipient)
-        print("Message sent!")
+            print("Message sent!")
     else: 
         print("Message not sent!")
     print("Message send flow complete.")
