@@ -17,6 +17,8 @@ from email.mime.multipart import MIMEMultipart
 import tempfile
 import webbrowser
 
+from tools import text_builder
+
 
 def parse_args():
     def convert_arg_line_to_args(arg_line):
@@ -100,7 +102,8 @@ def parse_args():
 
 
 def build_body(
-        body_path: str
+        body_path: str,
+        text_vars=None,
 ) -> str:
     """
     Build a body text using a body path. The body path points to a plain text or HTML-formatted message.
@@ -109,6 +112,7 @@ def build_body(
     Parameters
     -------
     body_path (str): Path to body file as a plain text or HTML-formatted file.
+    text_vars (dict): Dictionary of variables. Optional.
 
     Returns
     -------
@@ -118,6 +122,7 @@ def build_body(
     with open(body_path, "r+") as f:
         body = f.read() 
     f.close()
+    body = text_builder(body, text_vars)
     return body
 
 
@@ -260,10 +265,11 @@ def jmailer():
     if confirm_send=="y":
         for recipient in recipients:
             if body_path != None:
-                body = build_body(body_path)
+                text_vars = None
+                body = build_body(body_path, text_vars=text_vars)
             msg = build_message(sender, recipient, subject, body, attachments_path)
             smtp_connection.send_message(msg, from_addr=sender, to_addrs=recipient)
-        print("Message sent!")
+            print("Message sent!")
     else: 
         print("Message not sent!")
     print("Message send flow complete.")

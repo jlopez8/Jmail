@@ -29,28 +29,22 @@ class Timers():
             print("Warning: unable to Run exec_time.\nRawmessage: {msg}.\n{error}".format(msg=msg, error=e))
 
 
-def text_builder(text_path: str, text_vars=None) -> str:
+def text_builder(text: str, text_vars=None) -> str:
     """
     Using passed-along dictionary of variable names to values, fill in the 
-    text file located at text_path. May be passed on no variables to fill, in which case the text body is returned as-is.
+    text where keywords are specified. May be passed on no variables to fill, in which case the text body is returned as-is.
     Ignores case (case-insensitive). 
 
     Parameters
     -------
-    text_path (str): Path to text file.
-    text_vars (dict): Dictionary of variables. Optional
+    text_path (str): Text as string.
+    text_vars (dict): Dictionary of variables. Optional.
 
     Returns
     -------
     query (str): Filled-in text body by value using the text_vars dictionary.
     """
-
     DEFAULT_FILL_IN = ""
-
-    # Get the text.
-    with open(text_path, "r+") as f:
-        text = f.read() 
-    f.close()
     if text_vars == None:
         return text
 
@@ -154,55 +148,6 @@ class Formatters():
         pattern = "(^|[^a-zA-Z0-9])([a-zA-Z0-9])"
         f_name = re.sub(pattern, lambda x: x.group(1) + x.group(2).upper(),remove_spaces)
         return f_name
-    
-
-class ScreenShots():
-    """A class for handling screen shots."""
-
-    import os
-    from AppKit import NSScreen
-    import pyautogui
-
-    def __init__(self, height=None, width=None):
-        """
-        Constructor to initialize a screenshot grab with the default screen size. 
-        Provided values are cast as integers. 
-        Defines the image grab options.
-
-        Parameters
-        -------
-        height (float): Float of screen height.
-        width (float): Float of screen width.
-
-        Returns
-        -------
-        (none)
-        """
-        self.screen = self.NSScreen.mainScreen().frame()
-        if height is None:
-            self.screen_height = int(self.screen.size.height) 
-        else:
-            self.screen_height = int(height)
-        
-        if width is None:
-            self.screen_width = int(self.screen.size.width)
-        else:
-            self.screen_width = int(width)
-
-        # Define the screen crop and grab options. Tuple order is: (left, top, right, bottom).
-        self.image_grab_options = {
-            "WHOLE": (0, 0, self.screen_width, self.screen_height),
-            "TOP_HALF": (0, 0, self.screen_width, int(self.screen_height/2)),
-            "RIGHT_HALF": (int(self.screen_width/2), 0, self.screen_width, self.screen_height),
-            "BOTTOM_HALF": (0, int(self.screen_height/2), self.screen_width, self.screen_height),
-            "LEFT_HALF": (0, 0, int(self.screen_width/2), self.screen_height),
-            "TOP_LEFT_QUADRANT": (0, 0, int(self.screen_width/2), int(self.screen_height/2)),
-            "TOP_RIGHT_QUADRANT": (int(self.screen_width/2), 0, self.screen_width, int(self.screen_height/2)),
-            "BOTTOM_RIGHT_QUADRANT": (int(self.screen_width/2), int(self.screen_height/2), self.screen_width, self.screen_height),
-            "BOTTOM_LEFT_QUADRANT": (0, int(self.screen_height/2), int(self.screen_width/2), self.screen_height),
-            "CUSTOM": None,
-        }
-        return
     
 
     def snapshot(self, image_grap_opt="WHOLE", save_name=None, region=None):
