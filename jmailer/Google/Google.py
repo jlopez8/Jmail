@@ -26,7 +26,7 @@ class Google():
         Parameters
         -------
         credentials_path (str): Path to client secrets json.
-        service_account_env_var (str): Name of environment variable for google connection.
+        service_account_env_var (str): Name of environment variable for google connection. 
         
         Returns
         -------

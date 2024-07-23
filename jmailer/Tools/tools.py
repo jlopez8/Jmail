@@ -31,9 +31,9 @@ class Timers():
 
 def text_builder(text: str, text_vars=None) -> str:
     """
-    Using passed-along dictionary of variable names to values, fill in the 
-    text where keywords are specified. May be passed on no variables to fill, in which case the text body is returned as-is.
-    Ignores case (case-insensitive). 
+    Using passed-along dictionary of variable names to values, fill in the text where 
+    keywords are specified. May be passed on no variables to fill, in which case the text body 
+    is returned as-is. This ignores the case in the text, but it does not ignore case from the text_vars source.
 
     Parameters
     -------
@@ -47,14 +47,12 @@ def text_builder(text: str, text_vars=None) -> str:
     DEFAULT_FILL_IN = ""
     if text_vars == None:
         return text
-
     # Extract variables from the text.
     variables_in_text = re.findall("\{(.*?)\}", text, flags=re.IGNORECASE)
-
     # do a replacement: each time call local_vars...
     for var in variables_in_text:
         replace_me = "\{" + var + "\}"
-        replace_with = str(text_vars.get(var,DEFAULT_FILL_IN))
+        replace_with = str(text_vars.get(var, DEFAULT_FILL_IN))
         text = re.sub(replace_me, replace_with, text)
     return text
 

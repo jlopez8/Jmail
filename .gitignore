@@ -139,7 +139,7 @@ app_keys.py
 
 # secrets
 *secrets*
-*jmailer_secrets.json*
+*jmailer_secret.json*
 *token.pickle*
 
 # input_files

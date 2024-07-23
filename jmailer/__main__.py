@@ -236,6 +236,8 @@ def jmailer():
         config_path, sender, recipients, subject, body, body_path, attachments_path = parse_runme(runme)
         print("Loading runme file flow complete.")
 
+    # write language here to inculde the recipients overwriting
+
     print("Loading credentials flow...")
     config = yaml.safe_load(open(config_path))
     credentials = config["credentials"]
