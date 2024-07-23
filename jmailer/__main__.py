@@ -269,7 +269,7 @@ def jmailer():
                 body = build_body(body_path, text_vars=text_vars)
             msg = build_message(sender, recipient, subject, body, attachments_path)
             smtp_connection.send_message(msg, from_addr=sender, to_addrs=recipient)
-            print("Message sent!")
+        print("Message sent!")
     else: 
         print("Message not sent!")
     print("Message send flow complete.")
@@ -283,5 +283,3 @@ def jmailer():
 if __name__=="__main__":
 
     jmailer()
-    # delete me
-    print("run main successful")
