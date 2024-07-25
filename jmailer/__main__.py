@@ -17,7 +17,8 @@ from email.mime.multipart import MIMEMultipart
 import tempfile
 import webbrowser
 
-from tools import text_builder
+from Tools.tools import text_builder
+from Tools.tools import get_records
 
 
 def parse_args():
@@ -91,6 +92,10 @@ def parse_args():
         help="Path(s) to 0 or more attachment(s)."
     )
     parser.add_argument(
+        "-cp", "--callsheet_path", type=str,
+        help="Path to a callsheet of recipients to be emailed. Overrides recipients provided via the CLI or the runme file."
+    )
+    parser.add_argument(
         "-r", "--runme", type=str,
         help="""
         Path of runme file with arguments. If specified, this will 
@@ -153,7 +158,7 @@ def build_message(
     msg.set_content(body, subtype="html")
 
     # attachments
-    if attachments_path != None:
+    if attachments_path:
         with open(attachments_path[0], "rb") as fp:
             data = fp.read()
         # guess encoding
@@ -202,6 +207,7 @@ def parse_runme(runme: dict) -> dict:
     subject (str): Email subject.
     body (str): Email body.
     attachments_path (str): Path to attachment to be included in email.
+    callsheet_path (str): Path to callsheet with dictionary of contacts.
     """
     args = runme["arguments"]
     config_path = args.get("config_path", None)
@@ -211,7 +217,8 @@ def parse_runme(runme: dict) -> dict:
     body = args.get("body", None)
     body_path = args.get("body_path", None)
     attachments_path = args.get("attachments_path", None)
-    return config_path, sender, recipients, subject, body, body_path, attachments_path
+    callsheet_path = args.get("callsheet_path", None)
+    return config_path, sender, recipients, subject, body, body_path, attachments_path, callsheet_path
 
 
 def jmailer():
@@ -226,35 +233,38 @@ def jmailer():
     body = inputs.body
     body_path = inputs.body_path
     attachments_path = inputs.attachments_path
+    callsheet_path: inputs.callsheet
     runme_path = inputs.runme
     print("Input args flow complete.")
 
-    if runme_path != None:
+    if runme_path:
         print("Loading runme file flow...")
         print("Warning: runme arguments override CLI arguments.")
         runme = yaml.safe_load(open(runme_path))
-        config_path, sender, recipients, subject, body, body_path, attachments_path = parse_runme(runme)
+        config_path, sender, recipients, subject, body, body_path, attachments_path, callsheet_path = parse_runme(runme)
         print("Loading runme file flow complete.")
-
-    # write language here to inculde the recipients overwriting
 
     print("Loading credentials flow...")
     config = yaml.safe_load(open(config_path))
     credentials = config["credentials"]
-    app_password = credentials["gmail"]["app_password"]
     print("Loading credentials flow complete.")
 
     print("Connecting to SMTP Gmail flow...")
     context = ssl.create_default_context()
     smtp_connection = smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) 
-    smtp_connection.login(sender, app_password)
+    smtp_connection.login(sender, credentials["gmail"]["app_password"])
     print("Connecting to SMTP Gmail flow complete.")
+
+    if callsheet_path:
+        print("Using callsheet get flow...")
+        callsheet = get_records(callsheet_path, credentials_path=credentials["app"]["gsheets_secrets_path"])
+        print("Using callsheet get flow complete.")
 
     print("Message preview flow...")
     # Note: message preview flow requires temp file cleanup.
     confirm_preview = input(f"Do you want to preview the first message? (y - to confirm)")
-    if confirm_preview == "y" or None:
-        if body_path != None:
+    if confirm_preview == "y":
+        if body_path:
             body = build_body(body_path)
         msg = build_message(sender, recipients[0], subject, body, attachments_path)
         temp_filepath = preview_message(msg)
@@ -266,7 +276,7 @@ def jmailer():
     confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
     if confirm_send=="y":
         for recipient in recipients:
-            if body_path != None:
+            if body_path:
                 text_vars = None
                 body = build_body(body_path, text_vars=text_vars)
             msg = build_message(sender, recipient, subject, body, attachments_path)
