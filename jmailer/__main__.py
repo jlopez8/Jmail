@@ -80,6 +80,7 @@ def parse_args():
     )
     parser.add_argument(
         "-b", "--body", type=str,
+        default="",
         help="Email body as string."
     )
     parser.add_argument(
@@ -106,7 +107,7 @@ def parse_args():
     return args
 
 
-def build_body(
+def body_from_path(
         body_path: str,
         text_vars=None,
 ) -> str:
@@ -123,7 +124,6 @@ def build_body(
     -------
     body (str): Message body formatted as string. 
     """
-    body = None
     with open(body_path, "r+") as f:
         body = f.read() 
     f.close()
@@ -159,14 +159,15 @@ def build_message(
 
     # attachments
     if attachments_path:
-        with open(attachments_path[0], "rb") as fp:
-            data = fp.read()
-        # guess encoding
-        ctype, enconding = mimetypes.guess_type(attachments_path[0])
-        if ctype is None or enconding is not None:
-            ctype = "application/octet-stream"
-        maintype, subtype = ctype.split("/", 1)
-        msg.add_attachment(data, maintype=maintype, subtype=subtype)
+        for attachment in attachments_path:
+            with open(attachment, "rb") as fp:
+                data = fp.read()
+            # guess encoding
+            ctype, enconding = mimetypes.guess_type(attachment)
+            if ctype is None or enconding is not None:
+                ctype = "application/octet-stream"
+            maintype, subtype = ctype.split("/", 1)
+            msg.add_attachment(data, maintype=maintype, subtype=subtype)
 
     return msg
 
@@ -255,18 +256,26 @@ def jmailer():
     smtp_connection.login(sender, credentials["gmail"]["app_password"])
     print("Connecting to SMTP Gmail flow complete.")
 
+    # Decide with build_body method to use.
+    if body_path is None:
+        build_body = lambda : body
+    else:
+        build_body = lambda text_vars: body_from_path(body_path, text_vars=text_vars)
+    
     if callsheet_path:
-        print("Using callsheet get flow...")
+        print("Callsheet path provided. Retrieving callsheet...")
         callsheet = get_records(callsheet_path, credentials_path=credentials["app"]["gsheets_secrets_path"])
-        print("Using callsheet get flow complete.")
+        print("Retrieving callsheet complete.")
 
     print("Message preview flow...")
-    # Note: message preview flow requires temp file cleanup.
     confirm_preview = input(f"Do you want to preview the first message? (y - to confirm)")
     if confirm_preview == "y":
-        if body_path:
-            body = build_body(body_path)
-        msg = build_message(sender, recipients[0], subject, body, attachments_path)
+        if callsheet_path:
+            body = build_body(callsheet[0])
+            msg = build_message(sender, callsheet[0]["EMAIL"], subject, body, attachments_path)
+        else:
+            body = build_body(text_vars=None)
+            msg = build_message(sender, recipients[0], subject, body, attachments_path)
         temp_filepath = preview_message(msg)
     else:
         temp_filepath = None
@@ -286,10 +295,10 @@ def jmailer():
         print("Message not sent!")
     print("Message send flow complete.")
 
-    print("Cleanup flow...")
-    if temp_filepath:
-        os.remove(temp_filepath)
-    print("Cleanup flow complete.")
+    # print("Cleanup flow...")
+    # if temp_filepath:
+    #     os.remove(temp_filepath)
+    # print("Cleanup flow complete.")
 
 
 if __name__=="__main__":
