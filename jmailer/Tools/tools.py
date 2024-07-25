@@ -37,7 +37,8 @@ def text_builder(text: str, text_vars=None) -> str:
 
 def get_records(records_path: str, credentials_path=None) -> list:
     """
-    Get the records from a records source. This is configured to rely on Google sheets.
+    Get the records from a records source. This is configured to rely on Google sheets. 
+    The returned dictionaries turn headers from the records source into keys.
 
     Parameters
     -------
@@ -46,7 +47,7 @@ def get_records(records_path: str, credentials_path=None) -> list:
 
     Returns
     -------
-     ([dict]): Returns a list of dictionaries with the record information.
+     ([dict]): Returns a list of dictionaries with the record information.  Headers from the source are defined as dict keys.
     """
     _, gsheets = Google.Google().google_connect(credentials_path=credentials_path)
     return gsheets.open_by_key(records_path).sheet1.get_all_records(empty_value="", head=1, majdim="ROWS", numericise_data=True)
