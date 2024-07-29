@@ -2,7 +2,7 @@
 <html>
     <body>
         <div style="padding:20px 0px">
-            <div style="text-align:left;">
+            <div style="text-align:left; white-space: pre-wrap;">
                 <p>
                 Dear {addressee},
                 </p>
