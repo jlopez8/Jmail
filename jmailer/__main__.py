@@ -234,7 +234,7 @@ def jmailer():
     body = inputs.body
     body_path = inputs.body_path
     attachments_path = inputs.attachments_path
-    callsheet_path: inputs.callsheet
+    callsheet_path = inputs.callsheet_path
     runme_path = inputs.runme
     print("Input args flow complete.")
 
@@ -286,8 +286,7 @@ def jmailer():
     if confirm_send=="y":
         for recipient in recipients:
             if body_path:
-                text_vars = None
-                body = build_body(body_path, text_vars=text_vars)
+                body = build_body(text_vars=None)
             msg = build_message(sender, recipient, subject, body, attachments_path)
             smtp_connection.send_message(msg, from_addr=sender, to_addrs=recipient)
         print("Message sent!")
