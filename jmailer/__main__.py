@@ -4,6 +4,7 @@
 import os 
 import argparse
 import shlex
+import logging
 
 import yaml
 
@@ -19,6 +20,25 @@ import webbrowser
 
 from Tools.tools import text_builder
 from Tools.tools import get_records
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel("INFO")
+
+file_handler = logging.FileHandler(
+    "jmailer.log", mode="a", encoding="utf-8"
+)
+console_handler = logging.StreamHandler()
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+formatter = logging.Formatter(
+    "{asctime} - {levelname} - {message}",
+     style="{",
+     datefmt="%Y-%m-%d %H:%M",
+)
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
 
 
 def parse_args():
@@ -225,7 +245,7 @@ def parse_runme(runme: dict) -> dict:
 def jmailer():
     """Jmailer method."""
 
-    print("Input args flow...")
+    logger.info("Input args flow...")
     inputs = parse_args()
     config_path = inputs.config_path
     sender = inputs.sender
@@ -236,70 +256,66 @@ def jmailer():
     attachments_path = inputs.attachments_path
     callsheet_path = inputs.callsheet_path
     runme_path = inputs.runme
-    print("Input args flow complete.")
+    logger.info("Input args flow complete.")
 
     if runme_path:
-        print("Loading runme file flow...")
-        print("Warning: runme arguments override CLI arguments.")
+        logger.info("Loading runme file flow...")
+        logger.warning("Warning: runme arguments override CLI arguments.")
         runme = yaml.safe_load(open(runme_path))
         config_path, sender, recipients, subject, body, body_path, attachments_path, callsheet_path = parse_runme(runme)
-        print("Loading runme file flow complete.")
+        logger.info("Loading runme file flow complete.")
 
-    print("Loading credentials flow...")
+    logger.info("Loading credentials flow...")
     config = yaml.safe_load(open(config_path))
     credentials = config["credentials"]
-    print("Loading credentials flow complete.")
+    logger.info("Loading credentials flow complete.")
 
-    print("Connecting to SMTP Gmail flow...")
+    logger.info("Connecting to SMTP Gmail flow...")
     context = ssl.create_default_context()
     smtp_connection = smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) 
     smtp_connection.login(sender, credentials["gmail"]["app_password"])
-    print("Connecting to SMTP Gmail flow complete.")
+    logger.info("Connecting to SMTP Gmail flow complete.")
 
-    # Decide with build_body method to use.
     if body_path is None:
         build_body = lambda : body
     else:
         build_body = lambda text_vars: body_from_path(body_path, text_vars=text_vars)
     
     if callsheet_path:
-        print("Callsheet path provided. Retrieving callsheet...")
+        logger.info("Callsheet path provided. Retrieving callsheet...")
         callsheet = get_records(callsheet_path, credentials_path=credentials["app"]["gsheets_secrets_path"])
-        print("Retrieving callsheet complete.")
+        logger.info("Retrieving callsheet complete.")
 
-    print("Message preview flow...")
+    logger.info("Message preview flow...")
     confirm_preview = input(f"Do you want to preview the first message? (y - to confirm)")
     if confirm_preview == "y":
         if callsheet_path:
             body = build_body(callsheet[0])
             msg = build_message(sender, callsheet[0]["EMAIL"], subject, body, attachments_path)
         else:
-            body = build_body(text_vars=None)
+            body = build_body(None)
             msg = build_message(sender, recipients[0], subject, body, attachments_path)
         temp_filepath = preview_message(msg)
     else:
         temp_filepath = None
-    print("Message preview flow complete.")
+    logger.info("Message preview flow complete.")
 
-    print("Message send flow...")
+
+    # NOTE: you fiuxed this already what the fuck is going on ? I miss-merged something I think
+    logger.info("Message send flow...")
     confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
     if confirm_send=="y":
         for recipient in recipients:
             if body_path:
-                body = build_body(text_vars=None)
+                text_vars=None
+                body = build_body(text_vars)
             msg = build_message(sender, recipient, subject, body, attachments_path)
             smtp_connection.send_message(msg, from_addr=sender, to_addrs=recipient)
-        print("Message sent!")
+        logger.info("Message sent!")
     else: 
-        print("Message not sent!")
-    print("Message send flow complete.")
-
-    # print("Cleanup flow...")
-    # if temp_filepath:
-    #     os.remove(temp_filepath)
-    # print("Cleanup flow complete.")
+        logger.info("Message not sent!")
+    logger.info("Message send flow complete.")
 
 
 if __name__=="__main__":
-
     jmailer()
