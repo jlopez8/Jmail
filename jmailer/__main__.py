@@ -21,26 +21,17 @@ import webbrowser
 from Tools.tools import text_builder
 from Tools.tools import get_records
 
-# loggers
+
 logger = logging.getLogger(__name__)
 logger.setLevel("INFO")
-
-# logging.basicConfig(
-#     filename="jmailer.log",
-#     filemode="a", 
-#     format="%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s",
-#     datefmt="%H:%M:%S,"
-# )
 
 file_handler = logging.FileHandler(
     "jmailer.log", mode="a", encoding="utf-8"
 )
 console_handler = logging.StreamHandler()
-
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
-# formatter logger
 formatter = logging.Formatter(
     "{asctime} - {levelname} - {message}",
      style="{",
@@ -48,7 +39,6 @@ formatter = logging.Formatter(
 )
 file_handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
-
 
 
 def parse_args():
