@@ -35,7 +35,7 @@ logger.addHandler(console_handler)
 formatter = logging.Formatter(
     "{asctime} - {levelname} - {message}",
      style="{",
-     datefmt="%Y-%m-%d %H:%M",
+     datefmt="%Y-%m-%d %H:%M:%S",
 )
 file_handler.setFormatter(formatter)
 console_handler.setFormatter(formatter)
@@ -291,26 +291,33 @@ def jmailer():
     if confirm_preview == "y":
         if callsheet_path:
             body = build_body(callsheet[0])
-            msg = build_message(sender, callsheet[0]["EMAIL"], subject, body, attachments_path)
+            msg = build_message(sender, callsheet[0]["EMAIL"], subject, body, attachments_path=attachments_path)
         else:
             body = build_body(None)
-            msg = build_message(sender, recipients[0], subject, body, attachments_path)
+            msg = build_message(sender, recipients[0], subject, body, attachments_path=attachments_path)
         temp_filepath = preview_message(msg)
     else:
         temp_filepath = None
     logger.info("Message preview flow complete.")
 
 
-    # NOTE: you fiuxed this already what the fuck is going on ? I miss-merged something I think
     logger.info("Message send flow...")
-    confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
+    confirm_send = input(
+        f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
+
+
     if confirm_send=="y":
-        for recipient in recipients:
-            if body_path:
-                text_vars=None
-                body = build_body(text_vars)
-            msg = build_message(sender, recipient, subject, body, attachments_path)
-            smtp_connection.send_message(msg, from_addr=sender, to_addrs=recipient)
+        if callsheet_path:
+            for address in callsheet:
+                body = build_body(address)
+                msg = build_message(sender, address["EMAIL"], subject, body, attachments_path=attachments_path)
+                smtp_connection.send_message(msg, from_addr=sender, to_addrs=address["EMAIL"])
+        else:
+            for recipient in recipients:
+                body = build_body(None)
+                msg = build_message(sender, recipient, subject, body, attachments_path=attachments_path)
+                smtp_connection.send_message(msg, from_addr=sender, to_addrs=recipient)
+
         logger.info("Message sent!")
     else: 
         logger.info("Message not sent!")
