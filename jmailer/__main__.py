@@ -276,7 +276,6 @@ def jmailer():
     smtp_connection.login(sender, credentials["gmail"]["app_password"])
     logger.info("Connecting to SMTP Gmail flow complete.")
 
-    # Decide with build_body method to use.
     if body_path is None:
         build_body = lambda : body
     else:
@@ -294,12 +293,13 @@ def jmailer():
             body = build_body(callsheet[0])
             msg = build_message(sender, callsheet[0]["EMAIL"], subject, body, attachments_path)
         else:
-            body = build_body()
+            body = build_body(None)
             msg = build_message(sender, recipients[0], subject, body, attachments_path)
         temp_filepath = preview_message(msg)
     else:
         temp_filepath = None
     logger.info("Message preview flow complete.")
+
 
     # NOTE: you fiuxed this already what the fuck is going on ? I miss-merged something I think
     logger.info("Message send flow...")
