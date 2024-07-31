@@ -316,11 +316,6 @@ def jmailer():
         logger.info("Message not sent!")
     logger.info("Message send flow complete.")
 
-    # print("Cleanup flow...")
-    # if temp_filepath:
-    #     os.remove(temp_filepath)
-    # print("Cleanup flow complete.")
-
 
 if __name__=="__main__":
     jmailer()
