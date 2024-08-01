@@ -284,6 +284,7 @@ def jmailer():
     if callsheet_path:
         logger.info("Callsheet path provided. Retrieving callsheet...")
         callsheet = get_records(callsheet_path, credentials_path=credentials["app"]["gsheets_secrets_path"])
+        recipients = [address["EMAIL"] for address in callsheet]
         logger.info("Retrieving callsheet complete.")
 
     logger.info("Message preview flow...")
@@ -300,12 +301,8 @@ def jmailer():
         temp_filepath = None
     logger.info("Message preview flow complete.")
 
-
     logger.info("Message send flow...")
-    confirm_send = input(
-        f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
-
-
+    confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
     if confirm_send=="y":
         if callsheet_path:
             for address in callsheet:
