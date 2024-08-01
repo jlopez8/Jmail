@@ -300,27 +300,28 @@ def jmailer():
         temp_filepath = None
     logger.info("Message preview flow complete.")
 
-
     logger.info("Message send flow...")
-    confirm_send = input(
-        f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
-
-
-    if confirm_send=="y":
-        if callsheet_path:
+    
+    if callsheet_path:
+        addresses = [address["EMAIL"] for address in callsheet]
+        confirm_send = input(f"Are you sure you want to send emails to: \n {addresses}? (y - to confirm)")
+        if confirm_send == "y":
             for address in callsheet:
                 body = build_body(address)
                 msg = build_message(sender, address["EMAIL"], subject, body, attachments_path=attachments_path)
                 smtp_connection.send_message(msg, from_addr=sender, to_addrs=address["EMAIL"])
-        else:
+        else: 
+            logger.info("Message not sent!")
+    else:
+        confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
+        if confirm_send == "y":
             for recipient in recipients:
                 body = build_body(None)
                 msg = build_message(sender, recipient, subject, body, attachments_path=attachments_path)
                 smtp_connection.send_message(msg, from_addr=sender, to_addrs=recipient)
-
-        logger.info("Message sent!")
-    else: 
-        logger.info("Message not sent!")
+            logger.info("Message sent!")
+        else: 
+            logger.info("Message not sent!")
     logger.info("Message send flow complete.")
 
 
