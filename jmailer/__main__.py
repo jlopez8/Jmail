@@ -294,7 +294,7 @@ def jmailer():
             body = build_body(callsheet[0])
             msg = build_message(sender, callsheet[0]["EMAIL"], subject, body, attachments_path=attachments_path)
         else:
-            body = build_body(None)
+            body = build_body()
             msg = build_message(sender, recipients[0], subject, body, attachments_path=attachments_path)
         temp_filepath = preview_message(msg)
     else:
@@ -311,7 +311,7 @@ def jmailer():
                 smtp_connection.send_message(msg, from_addr=sender, to_addrs=address["EMAIL"])
         else:
             for recipient in recipients:
-                body = build_body(None)
+                body = build_body()
                 msg = build_message(sender, recipient, subject, body, attachments_path=attachments_path)
                 smtp_connection.send_message(msg, from_addr=sender, to_addrs=recipient)
 
