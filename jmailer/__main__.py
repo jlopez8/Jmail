@@ -277,7 +277,7 @@ def jmailer():
     logger.info("Connecting to SMTP Gmail flow complete.")
 
     if body_path is None:
-        build_body = lambda : body
+        build_body = lambda x: body
     else:
         build_body = lambda text_vars: body_from_path(body_path, text_vars=text_vars)
     
@@ -294,7 +294,7 @@ def jmailer():
             body = build_body(callsheet[0])
             msg = build_message(sender, callsheet[0]["EMAIL"], subject, body, attachments_path=attachments_path)
         else:
-            body = build_body()
+            body = build_body(None)
             msg = build_message(sender, recipients[0], subject, body, attachments_path=attachments_path)
         temp_filepath = preview_message(msg)
     else:
@@ -311,7 +311,7 @@ def jmailer():
                 smtp_connection.send_message(msg, from_addr=sender, to_addrs=address["EMAIL"])
         else:
             for recipient in recipients:
-                body = build_body()
+                body = build_body(None)
                 msg = build_message(sender, recipient, subject, body, attachments_path=attachments_path)
                 smtp_connection.send_message(msg, from_addr=sender, to_addrs=recipient)
 
