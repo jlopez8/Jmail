@@ -20,6 +20,10 @@ import webbrowser
 
 from Tools.tools import text_builder
 from Tools.tools import get_records
+from Google import Google
+
+
+SEND_OFF_MESSAGE_DB = "PROFESSIONAL_CONTACTS_DB"
 
 
 logger = logging.getLogger(__name__)
@@ -283,6 +287,7 @@ def jmailer():
     
     if callsheet_path:
         logger.info("Callsheet path provided. Retrieving callsheet...")
+        # notes: refactor me as part of the db connector change-up
         callsheet = get_records(callsheet_path, credentials_path=credentials["app"]["gsheets_secrets_path"])
         recipients = [address["EMAIL"] for address in callsheet]
         logger.info("Retrieving callsheet complete.")
@@ -304,6 +309,30 @@ def jmailer():
     logger.info("Message send flow...")
     confirm_send = input(f"Are you sure you want to send emails to: \n {recipients}? (y - to confirm)")
     if confirm_send=="y":
+        # connect to send-off db
+
+        # the idea here is to connect to the right database
+        # you may want to wrap this all up in one manager type...
+        logger.info("Connect to send-off message DB.")
+        gdrive, gsheets = Google.Google().google_connect(credentials_path=credentials["app"]["gsheets_secrets_path"])
+        # note this folder ID should be moved to the configuration!
+        folder_id="1JqqArRAtyZ82lbL5SWi24-Q7BAe7DJNE"
+        response = gdrive.files().list(
+            q=f"'{folder_id}' in parents"
+        ).execute()
+        files = response["files"]
+        connect_to_this_database = "PROFESSIONAL_CONTACTS_DB"
+        for file in files:
+            if file["name"]==connect_to_this_database:
+                found_this_file = file
+                break
+        sh = gsheets.open_by_key(found_this_file["id"])
+        # this is the database object sheet to be manipulating!
+        # so at this point we are done writing and can now "weave this" into the rest of the
+        # architecture
+        # getting t
+
+
         if callsheet_path:
             for address in callsheet:
                 body = build_body(address)
